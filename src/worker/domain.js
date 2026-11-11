@@ -12,7 +12,7 @@ export const LIMITS = {
   briefText: 2000,
   pasteText: 60000,
   uploadBytes: 512 * 1024,
-  pdfBytes: 10 * 1024 * 1024,
+  pdfBytes: 25 * 1024 * 1024,
   sourceContent: 60000,
   instruction: 2000,
   aliasMin: 1,

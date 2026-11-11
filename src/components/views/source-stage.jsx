@@ -14,7 +14,7 @@ import {
 
 const TILES = [
   { kind: 'url', icon: Globe, title: 'Website URL', desc: 'A public page, rendered and captured with Cloudflare Kitesurf.' },
-  { kind: 'text_upload', icon: FileText, title: 'Document', desc: 'PDF, .txt, or .md. PDFs up to 10 MB.' },
+  { kind: 'text_upload', icon: FileText, title: 'Document', desc: 'PDF, .txt, or .md. PDFs up to 25 MB.' },
   { kind: 'paste', icon: ClipboardType, title: 'Paste text', desc: 'Notes, an article, or a transcript.' },
   { kind: 'generate', icon: PenLine, title: 'Create from brief', desc: 'No source. Every question is marked AI-generated.' },
 ];
@@ -76,8 +76,8 @@ export default function SourceStage({ quiz, source, onSaved, readOnly }) {
           setError('Choose a PDF, .txt, or .md file.');
           return;
         }
-        if ((isPdf && file.size > 10 * 1024 * 1024) || (!isPdf && file.size > 512 * 1024)) {
-          setError('This file is too large. PDFs can be up to 10 MB and text files up to 512 KB.');
+        if ((isPdf && file.size > 25 * 1024 * 1024) || (!isPdf && file.size > 512 * 1024)) {
+          setError('This file is too large. PDFs can be up to 25 MB and text files up to 512 KB.');
           return;
         }
         const filename = encodeURIComponent(file.name);

@@ -31,7 +31,7 @@ Every question carries provenance: exact cited excerpts from a captured source s
 
 ## Capabilities and Constraints
 
-- Sources: public unauthenticated HTTPS webpages only (no bot-protected/authenticated pages), pasted text, UTF-8 `text/plain` / `text/markdown` documents under 512 KiB, PDFs with selectable text under 10 MiB (extracted with Workers AI `toMarkdown`; scanned/image-only PDFs are rejected), or a generation brief. No Office documents.
+- Sources: public unauthenticated HTTPS webpages only (no bot-protected/authenticated pages), pasted text, UTF-8 `text/plain` / `text/markdown` documents under 512 KiB, PDFs with selectable text under 25 MiB (extracted with Workers AI `toMarkdown`; scanned/image-only PDFs are rejected), or a generation brief. No Office documents.
 - Quizzes: 2–20 questions, 2–4 options, one correct answer, 5–120 s timer each.
 - Host identity is an opaque browser cookie; no accounts or recovery.
 - Deployment requires Cloudflare authorization; never claim anonymous deployment.

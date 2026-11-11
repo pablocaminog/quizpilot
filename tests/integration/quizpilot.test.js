@@ -347,8 +347,8 @@ test('pdf source upload', async () => {
   assert.equal(bad.status, 400);
   assert.equal(bad.json.error, 'INVALID_INPUT');
 
-  // over 10 MiB is rejected
-  const big = await put(Buffer.alloc(10 * 1024 * 1024 + 1), { 'content-type': 'application/pdf' });
+  // over 25 MiB is rejected
+  const big = await put(Buffer.alloc(25 * 1024 * 1024 + 1), { 'content-type': 'application/pdf' });
   assert.equal(big.status, 413);
   assert.equal(big.json.error, 'BODY_TOO_LARGE');
 
