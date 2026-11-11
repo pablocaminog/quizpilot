@@ -5,7 +5,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import QuestionEditor from '@/components/views/question-editor';
 import { api } from '@/lib/api';
 import { errorMessage } from '@/lib/messages';
-import { AlertCircle, Loader2, Plus, RotateCcw, Send } from 'lucide-react';
+import { AlertCircle, Loader2, Plus, RotateCcw } from 'lucide-react';
+import { StageHeading } from '@/components/stage';
 import { toast } from 'sonner';
 import { plural } from '@/lib/format';
 
@@ -26,12 +27,10 @@ export function PublishDialog({ open, onOpenChange, onConfirm, pending }) {
         <DialogHeader>
           <DialogTitle>Publish this quiz?</DialogTitle>
         </DialogHeader>
-        <p className="text-[14px] text-muted-foreground">
-          Published questions can't be edited. You can start live games from it right away.
-        </p>
+        <p className="text-[15px] text-muted-foreground">Questions can't be edited after publishing.</p>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={onConfirm} disabled={pending}>
+          <Button variant="signal" onClick={onConfirm} disabled={pending}>
             {pending && <Loader2 className="size-4 animate-spin" aria-hidden="true" />} Publish
           </Button>
         </DialogFooter>
@@ -119,46 +118,38 @@ export default function ReviewStage({ quiz, questions, generated, onSaved, onPub
   };
 
   const publishButton = (
-    <Button disabled={dirty || readOnly} onClick={() => setConfirm(true)}>
-      <Send className="size-4" aria-hidden="true" /> Publish
+    <Button variant="signal" disabled={dirty || readOnly} onClick={() => setConfirm(true)}>
+      Publish
     </Button>
   );
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-[18px] font-semibold tracking-[-0.01em]">Review questions</h2>
-          <p className="mt-1 text-[14px] text-muted-foreground">
-            {plural(draft.length, 'question', 'questions')} · {dirty ? 'unsaved changes' : 'saved'}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="secondary" onClick={onRegenerate}>
-            <RotateCcw className="size-4" aria-hidden="true" /> Regenerate
-          </Button>
-          <Button variant="secondary" onClick={save} disabled={!dirty || saving || readOnly}>
-            {saving && <Loader2 className="size-4 animate-spin" aria-hidden="true" />} Save changes
-          </Button>
-          {dirty ? (
-            <Tooltip>
-              <TooltipTrigger asChild><span>{publishButton}</span></TooltipTrigger>
-              <TooltipContent>Save your changes. Publishing needs a validated question set.</TooltipContent>
-            </Tooltip>
-          ) : (
-            publishButton
-          )}
-        </div>
-      </div>
+    <div>
+      <StageHeading step title="Review" hint={`${plural(draft.length, 'question', 'questions')} · ${dirty ? 'unsaved' : 'saved'}`}>
+        <Button variant="ghost" onClick={onRegenerate}>
+          <RotateCcw className="size-4" aria-hidden="true" /> Regenerate
+        </Button>
+        <Button variant="secondary" onClick={save} disabled={!dirty || saving || readOnly}>
+          {saving && <Loader2 className="size-4 animate-spin" aria-hidden="true" />} Save
+        </Button>
+        {dirty ? (
+          <Tooltip>
+            <TooltipTrigger asChild><span tabIndex={0}>{publishButton}</span></TooltipTrigger>
+            <TooltipContent>Save first.</TooltipContent>
+          </Tooltip>
+        ) : (
+          publishButton
+        )}
+      </StageHeading>
 
       {error && (
-        <div className="flex items-start gap-3 rounded-lg border bg-destructive-muted p-4">
-          <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+        <div className="mb-6 flex items-center gap-3 rounded-md border border-destructive/30 bg-destructive-muted px-5 py-3.5">
+          <AlertCircle className="size-4 shrink-0 text-destructive" aria-hidden="true" />
           <p className="text-[14px]">{errorMessage(error)}</p>
         </div>
       )}
 
-      <div ref={listRef} className="space-y-4">
+      <div ref={listRef} className="space-y-6">
         {draft.map((q, i) => (
           <QuestionEditor
             key={i}
@@ -174,9 +165,11 @@ export default function ReviewStage({ quiz, questions, generated, onSaved, onPub
       </div>
 
       {!readOnly && draft.length < 20 && (
-        <Button variant="ghost" onClick={() => { setDraft((d) => [...d, BLANK(generated)]); setDirty(true); }}>
-          <Plus className="size-4" aria-hidden="true" /> Add question
-        </Button>
+        <div className="mt-6 flex justify-center">
+          <Button variant="outline" onClick={() => { setDraft((d) => [...d, BLANK(generated)]); setDirty(true); }}>
+            <Plus className="size-4" aria-hidden="true" /> Add question
+          </Button>
+        </div>
       )}
 
       <PublishDialog open={confirm} onOpenChange={setConfirm} onConfirm={publish} pending={publishing} />

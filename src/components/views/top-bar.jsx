@@ -5,25 +5,30 @@ import { navigate } from '@/components/app-shell';
 
 export default function TopBar({ quiz }) {
   return (
-    <header className="h-14 border-b bg-background">
-      <div className="mx-auto flex h-full max-w-[1200px] items-center gap-3 px-4">
-        <button onClick={() => navigate('/')} className="text-[15px] font-semibold tracking-[-0.01em]">
-          QuizPilot
-        </button>
-        {quiz && (
-          <>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="gap-1">
-              <ChevronLeft className="size-4" aria-hidden="true" /> Quizzes
+    <header className="h-14 border-b">
+      <div className="mx-auto grid h-full max-w-[720px] grid-cols-[1fr_auto_1fr] items-center gap-3 px-6">
+        <div className="flex items-center gap-1">
+          {quiz && (
+            <Button variant="ghost" size="icon" onClick={() => navigate('/')} aria-label="All quizzes" className="-ml-3">
+              <ChevronLeft className="size-4" aria-hidden="true" />
             </Button>
-            <span className="text-muted-foreground">/</span>
-            <span className="max-w-[40ch] truncate text-[15px]">{quiz.title}</span>
-            <Badge variant={quiz.status === 'published' ? 'default' : 'secondary'}>
-              {quiz.status === 'published' ? 'Published' : 'Draft'}
-            </Badge>
-          </>
-        )}
-        <div className="ml-auto">
-          <Button variant="ghost" onClick={() => navigate('/play')}>
+          )}
+          <button onClick={() => navigate('/')} className="text-[15px] font-semibold tracking-[-0.01em]">
+            QuizPilot
+          </button>
+        </div>
+        <div className="flex min-w-0 items-center justify-center gap-2.5">
+          {quiz && (
+            <>
+              <span className="max-w-[280px] truncate text-[15px] font-medium">{quiz.title}</span>
+              <Badge variant={quiz.status === 'published' ? 'default' : 'secondary'}>
+                {quiz.status === 'published' ? 'Published' : 'Draft'}
+              </Badge>
+            </>
+          )}
+        </div>
+        <div className="flex justify-end">
+          <Button variant="ghost" className="-mr-5" onClick={() => navigate('/play')}>
             Join a game
           </Button>
         </div>

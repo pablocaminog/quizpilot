@@ -2,8 +2,8 @@ import { ERRORS, WS_ERRORS } from '@/shared/protocol.js';
 
 const COPY = {
   [ERRORS.sourceUnreadable]:
-    "Kitesurf couldn't read this page. It can't open pages behind a login or a bot check. Try another public page, or paste the text instead.",
-  [ERRORS.agentRunFailed]: "The draft didn't finish. Try again, or rephrase your request.",
+    "Kitesurf couldn't read this page. Try another public page, or paste the text.",
+  [ERRORS.agentRunFailed]: "The draft didn't finish. Try again.",
   [ERRORS.quizNotFound]: 'This quiz no longer exists.',
   [ERRORS.gameNotFound]: 'This game has ended or the code is wrong.',
   [ERRORS.quizNotEditable]: "Published quizzes can't be edited.",

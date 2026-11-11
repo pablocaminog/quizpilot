@@ -5,16 +5,20 @@ import { api } from '@/lib/api';
 import { errorMessage } from '@/lib/messages';
 import { navigate } from '@/components/app-shell';
 import { PublishDialog } from '@/components/views/review-stage';
-import { Check, Circle, CircleCheck, Copy, Loader2, Play } from 'lucide-react';
+import { Check, Copy, Loader2, Minus, Play } from 'lucide-react';
+import { StageHeading } from '@/components/stage';
+import { SpecRow, SpecTag } from '@/components/spec-tag';
+import { plural } from '@/lib/format';
 import { toast } from 'sonner';
 
-function CheckRow({ done, children }) {
-  const Icon = done ? CircleCheck : Circle;
+function CheckRow({ label, done, children }) {
   return (
-    <div className="flex items-center gap-2 text-[14px]">
-      <Icon className={`size-5 ${done ? 'text-success' : 'text-muted-foreground'}`} aria-hidden="true" />
-      {children}
-    </div>
+    <SpecRow label={label}>
+      <span className="flex items-center gap-2">
+        {done ? <Check className="size-4 text-success" aria-label="done" /> : <Minus className="size-4 text-muted-foreground" aria-label="missing" />}
+        {children}
+      </span>
+    </SpecRow>
   );
 }
 
@@ -37,31 +41,33 @@ export default function PublishStage({ quiz, source, questionCount, onPublished 
       }
     };
     return (
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-[18px] font-semibold tracking-[-0.01em]">Ready to play</h2>
-        </div>
-        <div className="flex items-center gap-2">
-          <Input readOnly value={url} aria-label="Quiz URL" onFocus={(e) => e.target.select()} />
-          <Button
-            variant="secondary"
-            onClick={() => {
-              navigator.clipboard?.writeText(url);
-              setCopied(true);
-              toast('Link copied');
-              setTimeout(() => setCopied(false), 2000);
-            }}
-          >
-            {copied ? <Check className="size-4" aria-hidden="true" /> : <Copy className="size-4" aria-hidden="true" />}
-            Copy
-          </Button>
-        </div>
-        <div>
-          <Button className="h-12" onClick={start} disabled={starting}>
+      <div>
+        <StageHeading step title="Ready to play" />
+        <SpecTag>
+          <SpecRow label="Link">
+            <div className="flex items-center gap-2">
+              <Input readOnly value={url} aria-label="Quiz URL" onFocus={(e) => e.target.select()} className="tabular" />
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  navigator.clipboard?.writeText(url);
+                  setCopied(true);
+                  toast('Link copied');
+                  setTimeout(() => setCopied(false), 2000);
+                }}
+              >
+                {copied ? <Check className="size-4" aria-hidden="true" /> : <Copy className="size-4" aria-hidden="true" />}
+                Copy
+              </Button>
+            </div>
+          </SpecRow>
+          <SpecRow label="Games"><span className="text-muted-foreground">Each game gets a new code.</span></SpecRow>
+        </SpecTag>
+        <div className="mt-10 flex justify-center">
+          <Button variant="signal" size="lg" onClick={start} disabled={starting}>
             {starting ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <Play className="size-4" aria-hidden="true" />}
-            Start a live game
+            Start game
           </Button>
-          <p className="mt-2 text-[13px] text-muted-foreground">Each game gets a new join code.</p>
         </div>
       </div>
     );
@@ -80,22 +86,20 @@ export default function PublishStage({ quiz, source, questionCount, onPublished 
     }
   };
 
+  const ready = !!source && questionCount >= 2;
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-[18px] font-semibold tracking-[-0.01em]">Publish</h2>
-        <p className="mt-1 text-[14px] text-muted-foreground">
-          Publishing locks the questions. Each live game uses this exact set.
-        </p>
+    <div>
+      <StageHeading step title="Publish" hint="Publishing locks the questions." />
+      <SpecTag>
+        <CheckRow label="Source" done={!!source}>{source ? source.label : 'Not selected'}</CheckRow>
+        <CheckRow label="Questions" done={questionCount >= 2}>{plural(questionCount, 'question', 'questions')} saved</CheckRow>
+        <CheckRow label="Provenance" done={questionCount >= 2}>Cited or marked AI-generated</CheckRow>
+      </SpecTag>
+      <div className="mt-10 flex justify-center">
+        <Button variant="signal" size="lg" onClick={() => setConfirm(true)} disabled={!ready}>
+          Publish
+        </Button>
       </div>
-      <div className="space-y-3">
-        <CheckRow done={!!source}>Source selected</CheckRow>
-        <CheckRow done={questionCount >= 2}>{questionCount} questions saved and validated</CheckRow>
-        <CheckRow done={questionCount >= 2}>Every question cites the source or is marked AI-generated</CheckRow>
-      </div>
-      <Button onClick={() => setConfirm(true)} disabled={!source || questionCount < 2}>
-        Publish
-      </Button>
       <PublishDialog open={confirm} onOpenChange={setConfirm} onConfirm={publish} pending={pending} />
     </div>
   );

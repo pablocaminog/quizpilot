@@ -8,9 +8,9 @@ export function SourceChip({ source }) {
   if (!source) return null;
   const Icon = KIND_ICONS[source.kind] ?? FileText;
   return (
-    <span className="inline-flex items-center gap-1.5 text-[13px] text-muted-foreground">
-      <Icon className="size-3.5" aria-hidden="true" />
-      Using: {source.label}
+    <span className="inline-flex min-w-0 items-center gap-1.5 text-[13px] text-muted-foreground">
+      <Icon className="size-3.5 shrink-0" aria-hidden="true" />
+      <span className="truncate">{source.label}</span>
     </span>
   );
 }
@@ -25,13 +25,14 @@ export function PromptInput({ value, onChange, onSend, onStop, disabled, streami
     }
   };
   return (
-    <div className="rounded-lg border">
+    <div className="rounded-md border bg-card shadow-label focus-within:border-signal">
       <textarea
         ref={areaRef}
         rows={1}
         value={value}
         disabled={disabled}
-        placeholder={placeholder ?? 'Describe the quiz you want…'}
+        placeholder={placeholder ?? 'Describe the quiz you want'}
+        aria-label="Describe the quiz you want"
         onChange={(e) => {
           onChange(e.target.value);
           grow();
@@ -42,16 +43,16 @@ export function PromptInput({ value, onChange, onSend, onStop, disabled, streami
             if (!disabled && value.trim()) onSend();
           }
         }}
-        className="w-full resize-none bg-transparent px-4 pt-3 text-[15px] outline-none placeholder:text-muted-foreground"
+        className="w-full resize-none bg-transparent px-4 pt-3.5 text-[15px] outline-none placeholder:text-muted-foreground focus-visible:outline-none"
       />
-      <div className="flex items-center justify-between px-3 pb-2">
+      <div className="flex items-center justify-between gap-3 py-2 pr-2 pl-4">
         <SourceChip source={source} />
         {streaming ? (
           <Button type="button" variant="secondary" size="sm" onClick={onStop}>
             <Square className="size-4" aria-hidden="true" /> Stop
           </Button>
         ) : (
-          <Button type="button" size="icon" aria-label="Send" disabled={disabled || !value.trim()} onClick={onSend}>
+          <Button type="button" size="icon-lg" aria-label="Send" disabled={disabled || !value.trim()} onClick={onSend}>
             <ArrowUp className="size-4" aria-hidden="true" />
           </Button>
         )}

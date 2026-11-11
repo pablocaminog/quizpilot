@@ -7,40 +7,60 @@ import { Textarea } from '@/components/ui/textarea';
 import { api } from '@/lib/api';
 import { errorMessage } from '@/lib/messages';
 import { formatCaptured, formatCount } from '@/lib/format';
-import {
-  AlertCircle, CircleCheck, ClipboardType, ExternalLink, FileText, Globe, Loader2, PenLine,
-} from 'lucide-react';
+import { AlertCircle, ClipboardType, ExternalLink, FileText, Globe, Loader2, PenLine } from 'lucide-react';
+import { StageHeading } from '@/components/stage';
+import { SpecRow, SpecTag } from '@/components/spec-tag';
 
 const TILES = [
-  { kind: 'url', icon: Globe, title: 'Website URL', desc: 'A public page, rendered and captured with Cloudflare Kitesurf.' },
-  { kind: 'text_upload', icon: FileText, title: 'Document', desc: 'PDF, .txt, or .md. PDFs up to 25 MB.' },
-  { kind: 'paste', icon: ClipboardType, title: 'Paste text', desc: 'Notes, an article, or a transcript.' },
-  { kind: 'generate', icon: PenLine, title: 'Create from brief', desc: 'No source. Every question is marked AI-generated.' },
+  { kind: 'url', icon: Globe, title: 'Website', desc: 'A public page' },
+  { kind: 'text_upload', icon: FileText, title: 'Document', desc: 'PDF, .txt, or .md' },
+  { kind: 'paste', icon: ClipboardType, title: 'Paste text', desc: 'Notes or an article' },
+  { kind: 'generate', icon: PenLine, title: 'Brief', desc: 'No source; AI-generated' },
 ];
-const KIND_ICONS = Object.fromEntries(TILES.map((t) => [t.kind, t.icon]));
+const KIND_ICONS = { ...Object.fromEntries(TILES.map((t) => [t.kind, t.icon])), pdf_upload: FileText };
+const KIND_NAMES = { url: 'Website', text_upload: 'Text document', pdf_upload: 'PDF', paste: 'Pasted text', generate: 'Brief' };
 const PASTE_LIMIT = 60000;
 
 export function SourceSummary({ source }) {
   const Icon = KIND_ICONS[source.kind] ?? FileText;
+  const excerpt = (source.excerpt ?? '').replace(/^#{1,6}\s+/gm, '').replace(/\n{3,}/g, '\n\n');
   return (
-    <div className="rounded-lg border">
-      <div className="flex items-center gap-2 border-b px-4 py-3">
-        <Icon className="size-4" aria-hidden="true" />
-        {source.url ? (
-          <a href={source.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[15px] font-medium underline">
-            {source.label}
-            <ExternalLink className="size-3.5" aria-hidden="true" />
-          </a>
-        ) : (
-          <span className="text-[15px] font-medium">{source.label}</span>
-        )}
-        <span className="tabular ml-auto text-[13px] text-muted-foreground">
-          {source.kind === 'pdf_upload' ? 'PDF · ' : ''}Captured {formatCaptured(source.capturedAt)} · {formatCount(source.charCount)} characters
+    <SpecTag
+      title={
+        <span className="flex min-w-0 items-center gap-2.5">
+          <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          {source.url ? (
+            <a href={source.url} target="_blank" rel="noreferrer" className="inline-flex min-w-0 items-center gap-1.5">
+              <span className="truncate">{source.label}</span>
+              <ExternalLink className="size-3.5 shrink-0" aria-hidden="true" />
+            </a>
+          ) : (
+            <span className="truncate">{source.label}</span>
+          )}
         </span>
-      </div>
-      <div className="max-h-40 overflow-y-auto" tabIndex={0} role="region" aria-label="Source excerpt">
-        <p className="px-4 py-3 text-[14px] whitespace-pre-wrap">{(source.excerpt ?? '').replace(/^#{1,6}\s+/gm, '').replace(/\n{3,}/g, '\n\n')}</p>
-      </div>
+      }
+    >
+      <SpecRow label="Kind">{KIND_NAMES[source.kind] ?? source.kind}</SpecRow>
+      <SpecRow label="Captured"><span className="tabular">{formatCaptured(source.capturedAt)}</span></SpecRow>
+      <SpecRow label="Length"><span className="tabular">{formatCount(source.charCount ?? 0)} characters</span></SpecRow>
+      {excerpt && (
+        <SpecRow label="Excerpt">
+          <div className="max-h-40 overflow-y-auto pr-2 text-[14px] whitespace-pre-wrap text-foreground/85" tabIndex={0} role="region" aria-label="Source excerpt">
+            {excerpt}
+          </div>
+        </SpecRow>
+      )}
+    </SpecTag>
+  );
+}
+
+function Pending({ children }) {
+  return (
+    <div className="space-y-2.5 rounded-md border bg-card p-5">
+      <Skeleton className="h-3.5 w-full bg-secondary" />
+      <Skeleton className="h-3.5 w-5/6 bg-secondary" />
+      <Skeleton className="h-3.5 w-2/3 bg-secondary" />
+      <p className="type-small pt-1">{children}</p>
     </div>
   );
 }
@@ -98,14 +118,18 @@ export default function SourceStage({ quiz, source, onSaved, readOnly }) {
   const disabled = pending || readOnly ||
     (kind === 'url' ? !url.trim() : kind === 'paste' ? !text.trim() || text.length > PASTE_LIMIT : kind === 'generate' ? !brief.trim() : !file);
 
+  const action = (label, pendingLabel) => (
+    <div className="flex justify-end">
+      <Button onClick={submit} disabled={disabled}>
+        {pending && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
+        {pending && pendingLabel ? pendingLabel : label}
+      </Button>
+    </div>
+  );
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-[18px] font-semibold tracking-[-0.01em]">Choose a source</h2>
-        <p className="mt-1 text-[14px] text-muted-foreground">
-          Questions will cite this source, or be marked AI-generated when you start from a brief.
-        </p>
-      </div>
+    <div>
+      <StageHeading step title="Choose a source" hint="Questions cite it, or are marked AI-generated." />
 
       <div role="radiogroup" aria-label="Source kind" className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {TILES.map((t) => {
@@ -118,121 +142,101 @@ export default function SourceStage({ quiz, source, onSaved, readOnly }) {
               aria-checked={selected}
               disabled={readOnly}
               onClick={() => setKind(t.kind)}
-              className={`relative min-h-[88px] rounded-lg border p-4 text-left ${selected ? 'ring-2 ring-primary border-primary' : ''} disabled:opacity-60`}
+              className={`min-h-24 rounded-md border bg-card p-5 text-left transition-colors disabled:opacity-50 ${selected ? 'border-signal shadow-[inset_0_0_0_1px_var(--signal)]' : 'hover:border-input'}`}
             >
-              {selected && <CircleCheck className="absolute right-3 top-3 size-5 text-primary" aria-hidden="true" />}
-              <Icon className="size-5" aria-hidden="true" />
-              <div className="mt-2 text-[15px] font-medium">{t.title}</div>
-              <div className="mt-0.5 text-[13px] text-muted-foreground">{t.desc}</div>
+              <Icon className={`size-[18px] ${selected ? 'text-signal' : 'text-muted-foreground'}`} aria-hidden="true" />
+              <div className="mt-3 text-[15px] font-medium">{t.title}</div>
+              <div className="type-small mt-0.5">{t.desc}</div>
             </button>
           );
         })}
       </div>
 
-      {!readOnly && kind === 'url' && (
-        <div className="space-y-3">
-          <div className="space-y-2">
-            <Label htmlFor="source-url">Page URL</Label>
-            <Input id="source-url" type="url" placeholder="https://" value={url} onChange={(e) => setUrl(e.target.value)} />
-          </div>
-          <Button onClick={submit} disabled={disabled}>
-            {pending && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
-            {pending ? 'Capturing…' : 'Capture page'}
-          </Button>
-          {pending && (
-            <div className="space-y-2 rounded-lg border p-4">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-5/6" />
-              <Skeleton className="h-4 w-2/3" />
-              <p className="text-[13px] text-muted-foreground">
-                Rendering the page in Kitesurf. This can take up to 30 seconds.
-              </p>
+      <div className="mt-8 space-y-4">
+        {!readOnly && kind === 'url' && (
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="source-url">Page URL</Label>
+              <Input id="source-url" type="url" placeholder="https://" value={url} onChange={(e) => setUrl(e.target.value)} />
             </div>
-          )}
-        </div>
-      )}
+            {action('Capture', 'Capturing…')}
+            {pending && <Pending>Capturing the page…</Pending>}
+          </>
+        )}
 
-      {!readOnly && kind === 'text_upload' && (
-        <div className="space-y-3">
-          <div
-            onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
-            onDragLeave={() => setDrag(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setDrag(false);
-              const f = e.dataTransfer.files?.[0];
-              if (f) setFile(f);
-            }}
-            className={`flex min-h-[120px] flex-col items-center justify-center gap-2 rounded-lg border border-dashed p-4 ${drag ? 'border-primary' : ''}`}
-          >
-            <FileText className="size-5 text-muted-foreground" aria-hidden="true" />
-            <p className="text-[14px] text-muted-foreground">{file ? file.name : 'Drop a .txt or .md file here'}</p>
-            <Button variant="secondary" onClick={() => fileRef.current?.click()}>Choose file</Button>
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".pdf,.txt,.md,application/pdf,text/plain,text/markdown"
-              className="sr-only"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+        {!readOnly && kind === 'text_upload' && (
+          <>
+            <div
+              onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
+              onDragLeave={() => setDrag(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDrag(false);
+                const f = e.dataTransfer.files?.[0];
+                if (f) setFile(f);
+              }}
+              className={`flex min-h-32 flex-col items-center justify-center gap-3 rounded-md border border-dashed border-input bg-card p-5 transition-colors ${drag ? 'border-signal' : ''}`}
+            >
+              <p className="max-w-full truncate text-[15px] text-muted-foreground">{file ? file.name : 'Drop a file here'}</p>
+              <Button variant="outline" onClick={() => fileRef.current?.click()}>Choose file</Button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".pdf,.txt,.md,application/pdf,text/plain,text/markdown"
+                className="sr-only"
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              />
+            </div>
+            {action('Use document', fileIsPdf ? 'Reading…' : 'Uploading…')}
+            {pending && fileIsPdf && <Pending>Reading the PDF…</Pending>}
+          </>
+        )}
+
+        {!readOnly && kind === 'paste' && (
+          <>
+            <Textarea rows={10} value={text} onChange={(e) => setText(e.target.value)} aria-label="Source text" />
+            <div className="flex items-center justify-between gap-4">
+              <p className={`tabular text-[13px] ${text.length > PASTE_LIMIT ? 'text-destructive' : 'text-muted-foreground'}`}>
+                {formatCount(text.length)} / {formatCount(PASTE_LIMIT)}
+              </p>
+              <Button onClick={submit} disabled={disabled}>
+                {pending && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
+                Use text
+              </Button>
+            </div>
+          </>
+        )}
+
+        {!readOnly && kind === 'generate' && (
+          <>
+            <Textarea
+              rows={5}
+              placeholder="A 10-question warm-up on the history of the web"
+              value={brief}
+              onChange={(e) => setBrief(e.target.value)}
+              aria-label="Brief"
             />
+            {action('Use brief')}
+          </>
+        )}
+
+        {error && (
+          <div className="flex items-center gap-3 rounded-md border border-destructive/30 bg-destructive-muted px-5 py-3.5">
+            <AlertCircle className="size-4 shrink-0 text-destructive" aria-hidden="true" />
+            <p className="flex-1 text-[14px]">{error}</p>
+            <Button variant="ghost" size="sm" onClick={submit}>Retry</Button>
           </div>
-          <Button onClick={submit} disabled={disabled}>
-            {pending && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
-            {pending ? (fileIsPdf ? 'Extracting…' : 'Uploading…') : 'Use this document'}
-          </Button>
-          {pending && fileIsPdf && (
-            <div className="space-y-2 rounded-lg border p-4">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-5/6" />
-              <Skeleton className="h-4 w-2/3" />
-              <p className="text-[13px] text-muted-foreground">
-                Extracting text from the PDF. Large files can take up to a minute.
-              </p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {!readOnly && kind === 'paste' && (
-        <div className="space-y-3">
-          <Textarea rows={10} value={text} onChange={(e) => setText(e.target.value)} />
-          <p className={`tabular text-[13px] ${text.length > PASTE_LIMIT ? 'text-destructive' : 'text-muted-foreground'}`}>
-            {formatCount(text.length)} / {formatCount(PASTE_LIMIT)} characters
-          </p>
-          <Button onClick={submit} disabled={disabled}>
-            {pending && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
-            Use this text
-          </Button>
-        </div>
-      )}
-
-      {!readOnly && kind === 'generate' && (
-        <div className="space-y-3">
-          <Textarea
-            rows={5}
-            placeholder="e.g. A 10-question warm-up on the history of the web for a team offsite"
-            value={brief}
-            onChange={(e) => setBrief(e.target.value)}
-          />
-          <Button onClick={submit} disabled={disabled}>
-            {pending && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
-            Use this brief
-          </Button>
-        </div>
-      )}
-
-      {error && (
-        <div className="flex items-start gap-3 rounded-lg border bg-destructive-muted p-4">
-          <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-          <p className="flex-1 text-[14px]">{error}</p>
-          <Button variant="secondary" size="sm" onClick={submit}>Try again</Button>
-        </div>
-      )}
+        )}
+      </div>
 
       {source && (
-        <div className="space-y-3">
+        <div className="mt-12 space-y-8">
           <SourceSummary source={source} />
-          {!readOnly && <Button onClick={() => onSaved(true)}>Continue to draft</Button>}
+          {!readOnly && (
+            <div className="flex justify-center">
+              <Button onClick={() => onSaved(true)}>Continue</Button>
+            </div>
+          )}
         </div>
       )}
     </div>

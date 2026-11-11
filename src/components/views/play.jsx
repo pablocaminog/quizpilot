@@ -12,14 +12,15 @@ import TimerBar, { useServerClock } from '@/components/timer-bar';
 import OptionShape from '@/components/option-shape';
 import { navigate } from '@/components/app-shell';
 import { WS_CLIENT, WS_SERVER } from '@/shared/protocol.js';
+import { SpecRow, SpecTag } from '@/components/spec-tag';
 
 export function PlayEntry() {
   const [code, setCode] = useState('');
   return (
-    <main className="mx-auto flex min-h-dvh max-w-[480px] flex-col justify-center px-5 pb-[15vh]">
-      <h1 className="text-[22px] font-semibold tracking-[-0.01em]">Join a game</h1>
-      <div className="mt-6 space-y-2">
-        <Label htmlFor="game-code">Game code</Label>
+    <PlayStage>
+      <h1 className="type-step text-center">Join a game</h1>
+      <div className="mt-10 space-y-2">
+        <Label htmlFor="game-code">Code</Label>
         <Input
           id="game-code"
           value={code}
@@ -30,10 +31,10 @@ export function PlayEntry() {
           className="tabular h-16 text-center text-[28px] tracking-[0.2em]"
         />
       </div>
-      <Button className="mt-4 h-14 w-full" disabled={code.length !== 6} onClick={() => navigate(`/play/${code}`)}>
+      <Button size="lg" className="mt-4 w-full" disabled={code.length !== 6} onClick={() => navigate(`/play/${code}`)}>
         Continue
       </Button>
-    </main>
+    </PlayStage>
   );
 }
 
@@ -99,47 +100,47 @@ export default function Play({ joinCode }) {
 
   if (joinState === 'notfound') {
     return (
-      <main className="mx-auto flex min-h-dvh max-w-[480px] flex-col justify-center px-5 pb-[15vh]">
-        <p className="text-[15px]">This game has ended or the code is wrong.</p>
-        <Button variant="secondary" className="mt-4 h-14" onClick={() => navigate('/play')}>
+      <PlayStage className="text-center">
+        <p className="type-title">This game has ended or the code is wrong.</p>
+        <Button variant="secondary" size="lg" className="mt-8" onClick={() => navigate('/play')}>
           Enter another code
         </Button>
-      </main>
+      </PlayStage>
     );
   }
 
   if (joinState === 'form') {
     return (
-      <main className="mx-auto flex min-h-dvh max-w-[480px] flex-col justify-center px-5 pb-[15vh]">
-        <h1 className="text-[22px] font-semibold tracking-[-0.01em]">
-          Join <span className="tabular">{joinCode}</span>
-        </h1>
-        <div className="mt-6 space-y-2">
-          <Label htmlFor="alias">Your name</Label>
-          <Input
-            id="alias"
-            className="h-14 text-[18px]"
-            maxLength={30}
-            placeholder="e.g. Sam"
-            value={alias}
-            onChange={(e) => setAlias(e.target.value)}
-          />
-          <p className="text-[13px] text-muted-foreground">Shown on the leaderboard.</p>
-        </div>
-        {joinError && <p className="mt-2 text-[13px] text-destructive">{joinError}</p>}
-        <Button className="mt-4 h-14 w-full" disabled={!alias.trim() || pending} onClick={join}>
-          {pending && <Loader2 className="size-4 animate-spin" aria-hidden="true" />} Join game
-        </Button>
-      </main>
+      <PlayStage>
+        <h1 className="tabular text-center text-[40px] leading-none font-semibold tracking-[0.06em]">{joinCode}</h1>
+        <form className="mt-10" onSubmit={(e) => { e.preventDefault(); if (alias.trim() && !pending) join(); }}>
+          <div className="space-y-2">
+            <Label htmlFor="alias">Name</Label>
+            <Input
+              id="alias"
+              className="h-14 text-[18px]"
+              maxLength={30}
+              placeholder="Sam"
+              autoComplete="nickname"
+              value={alias}
+              onChange={(e) => setAlias(e.target.value)}
+            />
+          </div>
+          {joinError && <p className="mt-2 text-[13px] text-destructive">{joinError}</p>}
+          <Button type="submit" variant="signal" size="lg" className="mt-4 w-full" disabled={!alias.trim() || pending}>
+            {pending && <Loader2 className="size-4 animate-spin" aria-hidden="true" />} Join game
+          </Button>
+        </form>
+      </PlayStage>
     );
   }
 
   const view = room ?? snapshot;
   if (!view) {
     return (
-      <main className="mx-auto flex min-h-dvh max-w-[480px] items-center justify-center px-5">
-        <Loader2 className="size-8 animate-spin text-muted-foreground" aria-label="Connecting" />
-      </main>
+      <PlayStage className="flex justify-center">
+        <Loader2 className="size-6 animate-spin text-muted-foreground" aria-label="Connecting" />
+      </PlayStage>
     );
   }
 
@@ -147,20 +148,19 @@ export default function Play({ joinCode }) {
   const remaining = view.deadlineMs ? Math.max(0, Math.ceil((view.deadlineMs - clock.now()) / 1000)) : null;
 
   return (
-    <div className="mx-auto flex min-h-dvh max-w-[480px] flex-col px-5 pb-8">
+    <PlayStage>
       <TimerBar deadlineMs={open ? view.deadlineMs : null} now={clock.now} active={open} />
       {!connected && (
-        <div className="fixed inset-x-0 top-2 z-50 flex h-10 items-center justify-center gap-2 bg-muted text-[14px]">
-          <Loader2 className="size-4 animate-spin" aria-hidden="true" /> Reconnecting…
+        <div className="fixed inset-x-0 top-1 z-50 flex h-9 items-center justify-center gap-2 bg-secondary text-[13px]">
+          <Loader2 className="size-3.5 animate-spin" aria-hidden="true" /> Reconnecting…
         </div>
       )}
 
       {view.status === 'lobby' && (
-        <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center">
-          <CircleCheck className="size-10 text-success" aria-hidden="true" />
-          <h1 className="text-[22px] font-semibold">You're in, {view.you?.alias ?? 'player'}.</h1>
-          <p className="text-[15px] text-muted-foreground">Watch the main screen. The game starts soon.</p>
-          <p className="text-[13px] text-muted-foreground">{plural(view.players.length, 'player', 'players')} joined</p>
+        <div className="flex flex-col items-center text-center">
+          <CircleCheck className="size-8 text-success" aria-hidden="true" />
+          <h1 className="mt-4 text-[22px] font-medium tracking-[-0.01em]">You're in, {view.you?.alias ?? 'player'}.</h1>
+          <p className="mt-1.5 text-[15px] text-muted-foreground">Watch the screen.</p>
         </div>
       )}
 
@@ -182,7 +182,15 @@ export default function Play({ joinCode }) {
       {view.status === 'finished' && (
         <FinishedPlayer leaderboard={finished ?? view.leaderboard ?? []} you={view.you ?? snapshot?.you} />
       )}
-    </div>
+    </PlayStage>
+  );
+}
+
+function PlayStage({ className, children }) {
+  return (
+    <main className="flex min-h-dvh flex-col items-center px-6 py-14" style={{ paddingBottom: 'max(3.5rem, env(safe-area-inset-bottom))' }}>
+      <div className={`my-auto w-full max-w-[480px] ${className ?? ''}`}>{children}</div>
+    </main>
   );
 }
 
@@ -196,43 +204,31 @@ function QuestionPlay({ snapshot, closed, remaining, answer, locked, onPick }) {
   if (isClosed) {
     const noAnswer = !result || result.selectedIndex == null;
     const correct = result?.correct;
+    const Icon = noAnswer ? Clock : correct ? CircleCheck : CircleX;
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-2 pt-16 text-center">
-        {noAnswer ? (
-          <>
-            <Clock className="size-12 text-muted-foreground" aria-hidden="true" />
-            <h1 className="text-[24px] font-semibold">No answer</h1>
-          </>
-        ) : correct ? (
-          <>
-            <CircleCheck className="size-12 text-success" aria-hidden="true" />
-            <h1 className="text-[24px] font-semibold">Correct</h1>
-            <p className="tabular text-[17px]">+{result.score} points</p>
-          </>
-        ) : (
-          <>
-            <CircleX className="size-12 text-destructive" aria-hidden="true" />
-            <h1 className="text-[24px] font-semibold">Not this time</h1>
-            <p className="text-[15px] text-muted-foreground">
-              The answer was {question.options[snapshot.correctIndex]}
-            </p>
-          </>
+      <div className="flex flex-col items-center text-center">
+        <Icon className={`size-10 ${noAnswer ? 'text-muted-foreground' : correct ? 'text-success' : 'text-destructive'}`} aria-hidden="true" />
+        <h1 className="mt-4 text-[28px] font-medium tracking-[-0.02em]">{noAnswer ? 'No answer' : correct ? 'Correct' : 'Not this time'}</h1>
+        {!noAnswer && !correct && (
+          <p className="mt-1.5 text-[15px] text-muted-foreground">The answer was {question.options[snapshot.correctIndex]}</p>
         )}
-        <p className="tabular mt-4 text-[15px]">
-          You're {rank >= 0 ? rank + 1 : '–'} of {leaderboard.length} · {you?.score ?? 0} points
-        </p>
+        <SpecTag className="mt-8 w-full text-left">
+          <SpecRow label="Points"><span className="tabular">+{result?.score ?? 0}</span></SpecRow>
+          <SpecRow label="Rank"><span className="tabular">{rank >= 0 ? rank + 1 : '–'} of {leaderboard.length}</span></SpecRow>
+          <SpecRow label="Total"><span className="tabular">{you?.score ?? 0}</span></SpecRow>
+        </SpecTag>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 pt-14">
+    <div>
       <div className="flex items-baseline justify-between">
-        <p className="text-[13px] text-muted-foreground">Question {questionPosition + 1} of {questionCount}</p>
-        <p className="tabular text-[15px]">{remaining}</p>
+        <p className="tabular type-small">Q{questionPosition + 1} / {questionCount}</p>
+        <p className={`tabular text-[17px] font-semibold ${remaining <= 5 ? 'text-destructive' : ''}`}>{remaining}</p>
       </div>
-      <h1 className="mt-4 text-[20px] font-semibold">{question.text}</h1>
-      <div className="mt-6 space-y-3">
+      <h1 className="mt-4 text-[20px] leading-snug font-medium tracking-[-0.01em]">{question.text}</h1>
+      <div className="mt-8 space-y-3">
         {question.options.map((opt, i) => {
           const chosen = answer === i;
           const sending = chosen && !locked;
@@ -241,20 +237,20 @@ function QuestionPlay({ snapshot, closed, remaining, answer, locked, onPick }) {
               key={i}
               disabled={answer !== null}
               onClick={() => onPick(i)}
-              className={`flex min-h-16 w-full items-center gap-3 rounded-xl border-2 px-4 text-left disabled:cursor-default ${
-                chosen && locked ? 'border-primary bg-primary/5' : chosen ? 'border-primary' : ''
-              } ${answer !== null && !chosen ? 'opacity-50' : ''}`}
+              className={`flex min-h-16 w-full items-center gap-3.5 rounded-md border bg-card px-4 py-3 text-left transition-[opacity,border-color] disabled:cursor-default ${
+                chosen ? 'border-signal shadow-[inset_0_0_0_1px_var(--signal)]' : 'active:border-foreground'
+              } ${answer !== null && !chosen ? 'opacity-45' : ''}`}
             >
-              <OptionShape index={i} size={24} />
-              <span className="flex-1 text-[17px] font-medium">{opt}</span>
+              <OptionShape index={i} size={18} className="shrink-0" />
+              <span className="min-w-0 flex-1 text-[17px] font-medium">{opt}</span>
               {sending && (
-                <span className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
-                  <Loader2 className="size-4 animate-spin" aria-hidden="true" /> Sending…
+                <span className="flex shrink-0 items-center gap-1.5 text-[13px] text-muted-foreground">
+                  <Loader2 className="size-3.5 animate-spin" aria-hidden="true" /> Sending…
                 </span>
               )}
               {chosen && locked && (
-                <span className="flex items-center gap-1.5 text-[13px]">
-                  <Lock className="size-4" aria-hidden="true" /> Answer locked
+                <span className="flex shrink-0 items-center gap-1.5 text-[13px] font-medium text-signal">
+                  <Lock className="size-3.5" aria-hidden="true" /> Locked
                 </span>
               )}
             </button>
@@ -268,12 +264,14 @@ function QuestionPlay({ snapshot, closed, remaining, answer, locked, onPick }) {
 function FinishedPlayer({ leaderboard, you }) {
   const rank = leaderboard.findIndex((p) => p.playerId === you?.playerId);
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-1 text-center">
-      <p className="text-[15px] text-muted-foreground">Final rank</p>
-      <p className="tabular text-[64px] font-bold leading-none">{rank >= 0 ? rank + 1 : '–'}</p>
-      <p className="text-[15px] text-muted-foreground">of {plural(leaderboard.length, 'player', 'players')}</p>
-      <p className="tabular mt-2 text-[17px]">{you?.score ?? 0} points</p>
-      <Button variant="secondary" className="mt-6 h-14" onClick={() => navigate('/play')}>
+    <div className="flex flex-col items-center text-center">
+      <p className="type-label">Final rank</p>
+      <p className="tabular mt-3 text-[72px] leading-none font-semibold tracking-[-0.02em]">{rank >= 0 ? rank + 1 : '–'}</p>
+      <p className="type-small mt-2">of {plural(leaderboard.length, 'player', 'players')}</p>
+      <SpecTag className="mt-8 w-full text-left">
+        <SpecRow label="Total"><span className="tabular">{you?.score ?? 0} points</span></SpecRow>
+      </SpecTag>
+      <Button variant="ghost" className="mt-6" onClick={() => navigate('/play')}>
         Join another game
       </Button>
     </div>

@@ -6,16 +6,16 @@ import { ChevronDown } from 'lucide-react';
 export function Sources({ citations }) {
   if (!citations?.length) return null;
   return (
-    <details className="group rounded-lg border">
-      <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-[13px] font-medium [&::-webkit-details-marker]:hidden">
+    <details className="group">
+      <summary className="flex min-h-9 cursor-pointer list-none items-center gap-1.5 text-[13px] font-medium text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden">
         <ChevronDown className="size-4 transition-transform group-open:rotate-180" aria-hidden="true" />
         {plural(citations.length, 'source', 'sources')} cited
       </summary>
-      <div className="space-y-2 px-3 pb-3">
+      <div className="mt-2 space-y-4">
         {citations.map((c, i) => (
           <div key={i}>
-            <div className="text-[13px] font-medium">{c.label}</div>
-            <blockquote className="border-l pl-3 text-[14px] text-muted-foreground">{c.excerpt}</blockquote>
+            <blockquote className="border-l border-input pl-3.5 text-[14px]">{c.excerpt}</blockquote>
+            <div className="type-small mt-1.5 pl-3.5">{c.label}</div>
           </div>
         ))}
       </div>

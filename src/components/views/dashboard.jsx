@@ -6,62 +6,69 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { ChevronRight, Loader2, Plus } from 'lucide-react';
+import { ChevronRight, Loader2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { errorMessage } from '@/lib/messages';
 import { relativeTime } from '@/lib/format';
 import { navigate } from '@/components/app-shell';
 import TopBar from '@/components/views/top-bar';
+import Stage, { StageHeading } from '@/components/stage';
+import { SpecTag } from '@/components/spec-tag';
+
+function Field({ id, label, error, children }) {
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={id}>{label}</Label>
+      {children}
+      {error && <p className="text-[13px] text-destructive">{error}</p>}
+    </div>
+  );
+}
 
 function CreateQuizDialog({ open, onOpenChange }) {
   const [fields, setFields] = useState({ title: '', audience: '', learningGoal: '' });
   const [errors, setErrors] = useState({});
   const [pending, setPending] = useState(false);
   const set = (k) => (e) => setFields((f) => ({ ...f, [k]: e.target.value }));
-  const submit = async () => {
+  const submit = async (e) => {
+    e?.preventDefault();
     setPending(true);
     setErrors({});
     try {
       const { quiz } = await api('createQuiz', {}, { body: fields });
       navigate(`/host/quiz/${quiz.id}`);
-    } catch (e) {
-      if (e.field) setErrors({ [e.field]: e.message ?? 'Invalid value.' });
-      else setErrors({ form: errorMessage(e) });
+    } catch (err) {
+      if (err.field) setErrors({ [err.field]: err.message ?? 'Invalid value.' });
+      else setErrors({ form: errorMessage(err) });
     } finally {
       setPending(false);
     }
   };
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[520px]">
+      <DialogContent className="max-w-[480px]">
         <DialogHeader>
-          <DialogTitle>Create quiz</DialogTitle>
+          <DialogTitle>New quiz</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="cq-title">Title</Label>
-            <Input id="cq-title" value={fields.title} onChange={set('title')} />
-            {errors.title && <p className="text-[13px] text-destructive">{errors.title}</p>}
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="cq-audience">Audience</Label>
-            <Input id="cq-audience" placeholder="e.g. New support hires" value={fields.audience} onChange={set('audience')} />
-            {errors.audience && <p className="text-[13px] text-destructive">{errors.audience}</p>}
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="cq-goal">Learning goal</Label>
-            <Textarea id="cq-goal" rows={3} placeholder="What should players know by the end?" value={fields.learningGoal} onChange={set('learningGoal')} />
-            {errors.learningGoal && <p className="text-[13px] text-destructive">{errors.learningGoal}</p>}
-          </div>
+        <form className="space-y-5" onSubmit={submit}>
+          <Field id="cq-title" label="Title" error={errors.title}>
+            <Input id="cq-title" value={fields.title} onChange={set('title')} autoFocus />
+          </Field>
+          <Field id="cq-audience" label="Audience" error={errors.audience}>
+            <Input id="cq-audience" placeholder="New support hires" value={fields.audience} onChange={set('audience')} />
+          </Field>
+          <Field id="cq-goal" label="Goal" error={errors.learningGoal}>
+            <Textarea id="cq-goal" rows={3} placeholder="What should players know?" value={fields.learningGoal} onChange={set('learningGoal')} />
+          </Field>
           {errors.form && <p className="text-[13px] text-destructive">{errors.form}</p>}
-        </div>
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={submit} disabled={pending}>
-            {pending && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
-            {pending ? 'Creating…' : 'Create quiz'}
-          </Button>
-        </DialogFooter>
+          <DialogFooter className="pt-2">
+            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button type="submit" disabled={pending}>
+              {pending && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
+              Create
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );
@@ -78,66 +85,54 @@ export default function Dashboard() {
   }, []);
   useEffect(load, [load]);
 
+  const empty = !state.loading && !state.error && state.quizzes.length === 0;
+  const newQuiz = <Button onClick={() => setCreating(true)}>New quiz</Button>;
+
   return (
     <div>
       <TopBar />
-      <main className="mx-auto max-w-[960px] px-4 py-10">
-        <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-[22px] font-semibold tracking-[-0.01em]">Quizzes</h1>
-          <Button onClick={() => setCreating(true)}>
-            <Plus className="size-4" aria-hidden="true" /> Create quiz
-          </Button>
-        </div>
-        <div className="rounded-lg border">
-          {state.loading ? (
-            [0, 1, 2].map((i) => (
-              <div key={i} className="flex h-16 items-center px-4">
-                <Skeleton className="h-5 w-1/2" />
-              </div>
-            ))
-          ) : state.error ? (
-            <div className="flex h-32 flex-col items-center justify-center gap-3">
-              <p className="text-[14px] text-muted-foreground">{state.error}</p>
-              <Button variant="secondary" onClick={load}>Try again</Button>
-            </div>
-          ) : state.quizzes.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 py-16">
-              <p className="text-[15px]">No quizzes yet.</p>
-              <p className="text-[14px] text-muted-foreground">
-                Start from a website, a text document, pasted notes, or a short brief.
-              </p>
-              <Button className="mt-2" onClick={() => setCreating(true)}>
-                <Plus className="size-4" aria-hidden="true" /> Create quiz
-              </Button>
-            </div>
-          ) : (
-            <ul className="divide-y">
-              {state.quizzes.map((q) => (
-                <li key={q.id}>
+      <Stage>
+        {empty ? (
+          <StageHeading title="No quizzes yet" hint="Start from a page, a document, or a brief.">{newQuiz}</StageHeading>
+        ) : (
+          <>
+            <StageHeading title="Quizzes">{newQuiz}</StageHeading>
+            <SpecTag as="div">
+              {state.loading ? (
+                [0, 1, 2].map((i) => (
+                  <div key={i} className="flex h-[68px] items-center px-5">
+                    <Skeleton className="h-4 w-1/2 bg-secondary" />
+                  </div>
+                ))
+              ) : state.error ? (
+                <div className="flex items-center justify-between gap-4 px-5 py-4">
+                  <p className="text-[15px] text-muted-foreground">Couldn't load quizzes.</p>
+                  <Button variant="secondary" onClick={load}>Retry</Button>
+                </div>
+              ) : (
+                state.quizzes.map((q) => (
                   <button
+                    key={q.id}
                     onClick={() => navigate(`/host/quiz/${q.id}`)}
-                    className="flex h-16 w-full items-center gap-4 px-4 text-left hover:bg-muted/50"
+                    className="flex min-h-[68px] w-full items-center gap-4 px-5 py-3 text-left transition-colors hover:bg-background"
                   >
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[15px] font-medium">{q.title}</span>
-                      <span className="block truncate text-[13px] text-muted-foreground">
-                        {q.audience} · {q.learningGoal}
+                      <span className="type-small block truncate">
+                        {q.audience} · updated {relativeTime(q.updatedAt)}
                       </span>
                     </span>
                     <Badge variant={q.status === 'published' ? 'default' : 'secondary'}>
                       {q.status === 'published' ? 'Published' : 'Draft'}
                     </Badge>
-                    <span className="hidden text-[13px] text-muted-foreground sm:inline">
-                      Updated {relativeTime(q.updatedAt)}
-                    </span>
                     <ChevronRight className="size-4 text-muted-foreground" aria-hidden="true" />
                   </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </main>
+                ))
+              )}
+            </SpecTag>
+          </>
+        )}
+      </Stage>
       <CreateQuizDialog open={creating} onOpenChange={setCreating} />
     </div>
   );

@@ -2,183 +2,239 @@
 name: QuizPilot
 description: Source-cited live quizzes, drafted with AI and reviewed by the host.
 colors:
-  primary: "oklch(0.53 0.21 262)"
-  primary-foreground: "oklch(0.985 0 0)"
-  background: "oklch(1 0 0)"
-  foreground: "oklch(0.145 0 0)"
-  muted: "oklch(0.97 0 0)"
-  muted-foreground: "oklch(0.556 0 0)"
-  border: "oklch(0.922 0 0)"
-  success: "oklch(0.52 0.14 152)"
-  success-muted: "oklch(0.96 0.04 152)"
-  destructive: "oklch(0.577 0.245 27.325)"
-  destructive-muted: "oklch(0.96 0.03 27)"
-  opt-triangle: "oklch(0.58 0.2 27)"
-  opt-diamond: "oklch(0.53 0.21 262)"
-  opt-circle: "oklch(0.72 0.15 75)"
-  opt-square: "oklch(0.55 0.13 175)"
+  paper: "#f1efea"
+  label: "#fbfaf8"
+  ink: "#1c1b19"
+  ink-hover: "#34322e"
+  second-ink: "#6b6862"
+  quiet: "#e7e4dd"
+  hairline: "#d9d5cc"
+  input-line: "#cfcac0"
+  signal: "#8a1c2b"
+  signal-hover: "#741624"
+  pine: "#2f6b45"
+  pine-wash: "#e3ece4"
+  brick: "#b3261e"
+  brick-wash: "#f6e3e0"
+  opt-triangle: "#b0472f"
+  opt-diamond: "#3a4f8a"
+  opt-circle: "#b8862b"
+  opt-square: "#2f6b5a"
 typography:
-  projector-code:
-    fontFamily: "Inter Variable, ui-sans-serif, system-ui, sans-serif"
-    fontSize: "clamp(6rem, 13vw, 14rem)"
-    fontWeight: 700
-    lineHeight: 1
-    letterSpacing: "0.06em"
-    fontFeature: "'tnum'"
-  projector-question:
-    fontFamily: "Inter Variable, ui-sans-serif, system-ui, sans-serif"
-    fontSize: "3.4vw"
-    fontWeight: 600
-  page-title:
-    fontFamily: "Inter Variable, ui-sans-serif, system-ui, sans-serif"
-    fontSize: "22px"
-    fontWeight: 600
+  display:
+    fontFamily: "Hanken Grotesk Variable, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "40px"
+    fontWeight: 500
+    lineHeight: 1.1
+    letterSpacing: "-0.02em"
+  step:
+    fontFamily: "Hanken Grotesk Variable, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "32px"
+    fontWeight: 500
+    lineHeight: 1.15
+    letterSpacing: "-0.02em"
+  title:
+    fontFamily: "Hanken Grotesk Variable, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "20px"
+    fontWeight: 500
+    lineHeight: 1.3
     letterSpacing: "-0.01em"
-  section-title:
-    fontFamily: "Inter Variable, ui-sans-serif, system-ui, sans-serif"
-    fontSize: "18px"
-    fontWeight: 600
+  tag-title:
+    fontFamily: "Hanken Grotesk Variable, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "17px"
+    fontWeight: 500
   body:
-    fontFamily: "Inter Variable, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "Hanken Grotesk Variable, ui-sans-serif, system-ui, sans-serif"
     fontSize: "15px"
     fontWeight: 400
-    fontFeature: "'cv11', 'ss01'"
-  meta:
-    fontFamily: "Inter Variable, ui-sans-serif, system-ui, sans-serif"
+    lineHeight: 1.55
+  excerpt:
+    fontFamily: "Hanken Grotesk Variable, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "14px"
+    fontWeight: 400
+  small:
+    fontFamily: "Hanken Grotesk Variable, ui-sans-serif, system-ui, sans-serif"
     fontSize: "13px"
     fontWeight: 400
+    lineHeight: 1.45
+  label:
+    fontFamily: "Hanken Grotesk Variable, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "11px"
+    fontWeight: 600
+    letterSpacing: "0.08em"
+  player-rank:
+    fontFamily: "Hanken Grotesk Variable, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "72px"
+    fontWeight: 600
+    lineHeight: 1
+  player-result:
+    fontFamily: "Hanken Grotesk Variable, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "28px"
+    fontWeight: 500
+  player-title:
+    fontFamily: "Hanken Grotesk Variable, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "22px"
+    fontWeight: 500
+  player-input:
+    fontFamily: "Hanken Grotesk Variable, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "18px"
+    fontWeight: 400
+  button-large:
+    fontFamily: "Hanken Grotesk Variable, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "16px"
+    fontWeight: 500
+  projector-code:
+    fontFamily: "Hanken Grotesk Variable, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "clamp(5rem, 11vw, 11rem)"
+    fontWeight: 600
+    lineHeight: 1
+    letterSpacing: "0.04em"
+    fontFeature: "'tnum'"
+  projector-question:
+    fontFamily: "Hanken Grotesk Variable, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "3.2vw"
+    fontWeight: 500
+    lineHeight: 1.15
 rounded:
-  sm: "4px"
-  md: "6px"
-  lg: "8px"
-  xl: "12px"
+  base: "4px"
+  chip: "999px"
 spacing:
-  control-height: "44px"
-  player-option-height: "64px"
+  control: "44px"
+  player-option: "64px"
   top-bar: "56px"
-  step-rail: "248px"
-  pane: "760px"
+  column: "720px"
+  form-column: "480px"
+  projector-column: "1200px"
 components:
   button-primary:
-    backgroundColor: "{colors.primary}"
-    textColor: "{colors.primary-foreground}"
-    rounded: "{rounded.md}"
+    backgroundColor: "{colors.ink}"
+    textColor: "{colors.label}"
+    rounded: "{rounded.base}"
     height: "44px"
-    padding: "0 16px"
+    padding: "0 20px"
+  button-primary-hover:
+    backgroundColor: "{colors.ink-hover}"
+  button-signal:
+    backgroundColor: "{colors.signal}"
+    textColor: "{colors.label}"
+    rounded: "{rounded.base}"
+    height: "44px"
+  button-signal-hover:
+    backgroundColor: "{colors.signal-hover}"
   button-secondary:
-    backgroundColor: "{colors.muted}"
-    textColor: "{colors.foreground}"
-    rounded: "{rounded.md}"
+    backgroundColor: "{colors.quiet}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.base}"
     height: "44px"
   input:
-    backgroundColor: "{colors.background}"
-    textColor: "{colors.foreground}"
-    rounded: "{rounded.md}"
+    backgroundColor: "{colors.label}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.base}"
     height: "44px"
-  option-tile:
-    backgroundColor: "{colors.background}"
-    textColor: "{colors.foreground}"
-    rounded: "{rounded.xl}"
-  option-tile-correct:
-    backgroundColor: "{colors.success-muted}"
-    textColor: "{colors.foreground}"
-    rounded: "{rounded.xl}"
+  spec-tag:
+    backgroundColor: "{colors.label}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.base}"
+  status-chip:
+    textColor: "{colors.second-ink}"
+    rounded: "{rounded.chip}"
+    typography: "{typography.label}"
 ---
 
 # Design System: QuizPilot
 
 ## Overview
 
-**Creative North Star: "The Quiet Control Room"**
+**Creative North Star: "Unbleached Label"**
 
-QuizPilot uses the category standard, played straight: shadcn/ui New York neutral tokens, Inter, hairline borders, and one blue action colour. The bar is Linear's level of craft: aligned, dense where the host works, and calm. The host workspace is a quiet tool at a desk. The projector is the system's one loud moment, with type sized for the back row of a lit room.
+Every screen is one quiet, centred label: a name, a few hairline rows of detail, one action. The world comes from no-brand packaging, with plain warm-grey stock, a single crisp grotesk, hairline spec rows, and one ink. It refuses the dashboard-with-sidebar and the Kahoot tile wall.
 
-Provenance and server authority are shown plainly. Every question carries a citation badge or an "AI-generated" badge. Timers and scores come from the room, never from the client.
+Content sits in one centred column. Screens shorter than the viewport are centred vertically as well. Copy is trimmed to one hint per step. The projector is the loudest surface, through scale alone: the same tag and type, sized for the back of the room.
 
 **Key Characteristics:**
-- Light theme everywhere (desk, lit meeting room, phones in the same room).
-- One action colour; all other colour carries state or option identity.
-- Correctness is never colour-only: a check or x icon and a text label always accompany it.
-- 44px minimum targets; 64px player options.
+- Warm grey paper ground with near-white label surfaces.
+- Solid ink primary buttons; burgundy only for live signals and the three commit moments (Start game, Publish, Join game).
+- One family (Hanken Grotesk), tabular numerals, and uppercase tracked row labels.
+- The spec tag (hairline `LABEL  value` rows) is the signature: sources, provenance, publish checks, the join code, and results.
+- Correctness is never colour-only: a check or x icon plus a word.
 
 ## Colors
 
-A neutral ground, one blue for action, and state colours only where they mean something.
+The palette is restrained: tinted neutrals plus one accent, and state colours where they mean something.
 
 ### Primary
-- **Action Blue** (oklch(0.53 0.21 262)): primary buttons, selection rings, the focus ring, current step glyph, and the draining question timer bar.
+- **Ink** (#1c1b19): text, primary buttons, and the projector's main actions.
+- **Signal Burgundy** (#8a1c2b): the current step underline, selection rings, focus outlines, the timer line, the join-code rule, and the three commit buttons. Nothing decorative is burgundy.
 
 ### Neutral
-- **White** (oklch(1 0 0)): every background.
-- **Ink** (oklch(0.145 0 0)): text.
-- **Muted** (oklch(0.97 0 0)): secondary buttons, host chat bubbles, lobby alias chips, current rail row.
-- **Hairline** (oklch(0.922 0 0)): all borders and dividers.
+- **Paper** (#f1efea): every page ground.
+- **Label** (#fbfaf8): spec tags, inputs, tiles, dialogs.
+- **Second Ink** (#6b6862): hints, labels, meta.
+- **Quiet** (#e7e4dd): secondary button fill, the reconnect band.
+- **Hairline** (#d9d5cc) and **Input Line** (#cfcac0): rules and control borders.
 
 ### State
-- **Correct Green** (oklch(0.52 0.14 152)) with Correct Wash (oklch(0.96 0.04 152)): the correct answer, done steps, the "Live" indicator.
-- **Error Red** (oklch(0.577 0.245 27.325)) with Error Wash (oklch(0.96 0.03 27)): failures, wrong answers, the last 5 seconds of a timer.
+- **Pine** (#2f6b45) with Pine Wash (#e3ece4): correct, done, live.
+- **Brick** (#b3261e) with Brick Wash (#f6e3e0): wrong, errors, the last five seconds.
+- **Option glyphs:** triangle #b0472f, diamond #3a4f8a, circle #b8862b, square #2f6b5a. These colour the glyph only, never a tile fill.
 
-### Option identity
-Triangle red, diamond blue, circle amber, square teal (`--opt-0..3`). These colour only the shape glyphs, never the tile fills.
-
-**The One Voice Rule.** Blue means "act here" or "time is running". Nothing decorative is blue.
+**The One Ink Rule.** Burgundy marks what is live or irreversible. If it isn't one of those, it isn't burgundy.
 
 ## Typography
 
-**Font:** Inter Variable (self-hosted via @fontsource-variable/inter), with `cv11` and `ss01` enabled; tabular numerals for codes, scores, counts, and timers.
+**Font:** Hanken Grotesk Variable (self-hosted via @fontsource-variable/hanken-grotesk), one family for everything, with tabular numerals for codes, scores, counts, and timers.
 
 ### Hierarchy
-- **Projector code** (700, clamp(6rem, 13vw, 14rem), tracking 0.06em): the join code only.
-- **Projector question** (600, 3.4vw, balanced, max 28ch); options at 2.4vw; leaderboard at 2vw.
-- **Page title** (600, 22px, -0.01em); **Section title** (600, 18px).
-- **Body** (400, 15px); **Body-sm** 14px; **Meta** 13px muted.
-
-**The Back-Row Rule.** Projector type scales with the viewport (`vw`), so it reads the same on any projected screen.
+- **Display** (500, 40px, -0.02em): centred page headings (Quizzes, empty states).
+- **Step** (500, 32px): workspace step headings and player headings.
+- **Title** (500, 20px) and **Tag title** (500, 17px).
+- **Body** (400, 15px / 1.55), **Excerpt** 14px, **Small** 13px in second ink.
+- **Label** (600, 11px, uppercase, 0.08em): spec-row and field labels only, never above a heading.
+- **Projector:** code clamp(5rem, 11vw, 11rem) at 600; question 3.2vw at 500; options 2.2vw; leaderboard 1.8vw.
 
 ## Layout
 
-- Host top bar 56px; content max 1200px.
-- The workspace has a 248px step rail (Source, Draft, Review, Publish) with a full-height hairline, and a working pane up to 760px. Below 1024px the rail becomes a horizontal strip.
-- The dashboard is a max-960px single bordered list, not a card grid.
-- Projector: full viewport, with an 80px control bar fixed at the bottom and one contextual primary action (Space triggers it).
-- Player: max 480px, single column, safe-area padding.
+- `Stage`: a centred column (720px default, 480px for forms and the player, 1200px for the projector) with `my-auto` inside a viewport-height flex column. Short content centres both ways; long content starts at the top and scrolls.
+- Host top bar: 56px, a 720px three-part grid (wordmark, quiz title + chip, "Join a game").
+- Workspace: a centred step strip (Source · Draft · Review · Publish) above a centred step heading, a one-line hint, and the step body.
+- Projector: full viewport, content centred, with a 64px control bar fixed at the bottom.
 
 ## Elevation & Depth
 
-Flat. Depth comes from hairline borders and the muted fill. Shadows are limited to the shadcn `shadow-xs` on inputs and the default dialog and popover shadows.
+Flat paper, with one lift. Spec tags, dialogs, and popovers use the label shadow; everything else is separated by hairlines.
+
+- **Label shadow** (`0 1px 2px rgb(28 27 25 / 0.06), 0 8px 24px -12px rgb(28 27 25 / 0.12)`).
 
 ## Shapes
 
-8px base radius (`--radius: 0.5rem`). Inputs and buttons use 6px, containers 8px, option tiles and player answers 12px. Borders are 1px, except a 2px selection ring and a 3px correct-tile border.
+4px radius everywhere. Status chips are the only pills. Borders are 1px hairlines; the selected tile and the locked answer add a 1px inset signal ring; the correct projector tile gets a 2px pine border.
 
 ## Components
 
+### Spec tag (signature)
+A label surface with a 1px border and the label shadow. Optional header (17px title + aside), rows in a `[120px_1fr]` grid with 1px rules between them, an optional footer for actions. On mobile, rows stack.
+
 ### Buttons
-- **Primary:** Action Blue, white text, 44px high; at most one per area.
-- **Secondary:** muted fill. **Ghost:** for navigation and dismissal.
-- **Focus:** 3px ring at ring/50. **Disabled:** 50% opacity, with a tooltip explaining why when the reason isn't obvious (e.g. Publish).
+- Primary: ink, 44px. Signal: burgundy, only for Start game, Publish, and Join game. Secondary: quiet fill. Ghost and outline for minor actions.
+- Focus: a 2px burgundy outline offset 2px, everywhere.
+- Disabled: 40% opacity.
 
-### Source tiles
-2×2 radiogroup; the selected tile gets a 2px primary ring and a check glyph.
+### Inputs
+Label surface, 1px input-line border, 4px radius, 44px tall. On focus, the border turns burgundy and the outline shows.
 
-### Question editor
-Bordered section per question: provenance badge, move and delete toolbar, option rows with a shape glyph, input, and a fixed-width "Correct" radio that shows a check plus the word "Correct", plus a timer select and a rationale field.
-
-### Timer bar (signature)
-An 8px full-width bar at the top of the projector and player screens, draining right-to-left to the server deadline. It turns red for the final 5 seconds and updates stepwise under reduced motion.
-
-### Option tiles (projector)
-White tile with a hairline border and a shape glyph. When the question closes, the correct tile gets the Correct Wash, a 3px green border, and a "Correct answer" label; the others drop to 45% opacity. Each tile shows a pick-count bar.
+### Timer line
+A 4px burgundy line across the top edge of the projector and player screens, draining to the server deadline. The seconds turn brick for the final five.
 
 ## Do's and Don'ts
 
 ### Do:
-- **Do** pair every correctness state with an icon and a word.
-- **Do** use tabular numerals for every number that changes.
-- **Do** keep stock shadcn primitives; restyle only through tokens.
+- **Do** centre every screen's column, and vertically centre short screens.
+- **Do** put details in spec rows instead of sentences.
+- **Do** keep one hint line per step, at most.
+- **Do** use tabular numerals for every changing number.
 
 ### Don't:
 - **Don't** use gradients, glass, glow, confetti, sparkle/AI icons, or eyebrow labels above headings.
-- **Don't** fill option tiles with their identity colour (the Kahoot look).
-- **Don't** show the correct answer on the projector while a question is open.
-- **Don't** display client-derived time or scores.
+- **Don't** use burgundy for decoration, or fill option tiles with their glyph colour.
+- **Don't** add a sidebar; navigation is the top bar and the step strip.
+- **Don't** show the correct answer on the projector while a question is open, or show client-derived time or scores.

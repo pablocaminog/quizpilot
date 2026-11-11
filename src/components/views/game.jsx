@@ -3,7 +3,8 @@ import QRCode from 'qrcode';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Loader2, CircleCheck } from 'lucide-react';
+import { Check, Loader2 } from 'lucide-react';
+import { SpecRow, SpecTag } from '@/components/spec-tag';
 import { toast } from 'sonner';
 import { useRoom } from '@/lib/use-room';
 import TimerBar, { useServerClock } from '@/components/timer-bar';
@@ -80,12 +81,12 @@ export default function Game({ joinCode }) {
 
   const primary = (() => {
     if (status === 'lobby')
-      return { label: 'Start game', send: WS_CLIENT.start, disabled: players.length === 0, tip: 'Waiting for players' };
+      return { label: 'Start', send: WS_CLIENT.start, disabled: players.length === 0, tip: 'Waiting for players', signal: true };
     if (status === 'question_open') return { label: 'Close question', send: WS_CLIENT.closeQuestion };
     if (status === 'question_closed')
       return questionPosition + 1 >= questionCount
-        ? { label: 'Show final results', send: WS_CLIENT.finish }
-        : { label: 'Next question', send: WS_CLIENT.nextQuestion };
+        ? { label: 'Results', send: WS_CLIENT.finish }
+        : { label: 'Next', send: WS_CLIENT.nextQuestion };
     return { label: 'Back to quiz', nav: `/host/quiz/${view.quizId}` };
   })();
 
@@ -98,7 +99,7 @@ export default function Game({ joinCode }) {
     <div className="flex min-h-dvh flex-col bg-background">
       <TimerBar deadlineMs={open ? deadlineMs : null} now={clock.now} active={open} />
 
-      <main className="flex flex-1 flex-col px-[4vw] pb-24 pt-[6vh]">
+      <main className="mx-auto flex w-full max-w-[1600px] flex-1 flex-col justify-center px-[4vw] pt-[5vh] pb-[calc(4rem+5vh)]">
         {status === 'lobby' && <Lobby joinCode={joinCode} players={players} />}
         {(open || status === 'question_closed') && question && (
           <QuestionStage
@@ -119,13 +120,13 @@ export default function Game({ joinCode }) {
         {status === 'finished' && <Finished leaderboard={leaderboard} questionCount={questionCount} />}
       </main>
 
-      <footer className="fixed inset-x-0 bottom-0 flex h-20 items-center justify-between border-t bg-background px-8">
-        <div className="flex items-center gap-3 text-[18px]">
+      <footer className="fixed inset-x-0 bottom-0 flex h-16 items-center justify-between border-t bg-background px-8">
+        <div className="flex items-center gap-4 text-[15px]">
           <span className="tabular">Room {joinCode} · {plural(players.length, 'player', 'players')}</span>
           <span className={`flex items-center gap-1.5 text-[13px] ${connected ? 'text-success' : 'text-muted-foreground'}`}>
             {connected ? (
               <>
-                <span className="size-2 rounded-full bg-success" /> Live
+                <span className="size-1.5 rounded-full bg-success" /> Live
               </>
             ) : (
               <>
@@ -136,7 +137,7 @@ export default function Game({ joinCode }) {
         </div>
         <div className="flex items-center gap-3">
           {status !== 'finished' && (
-            <Button variant="secondary" onClick={() => setConfirmEnd(true)}>
+            <Button variant="ghost" onClick={() => setConfirmEnd(true)}>
               End game
             </Button>
           )}
@@ -152,7 +153,7 @@ export default function Game({ joinCode }) {
           ) : (
             <PrimaryButton ref={primaryRef} primary={primary} send={send} />
           )}
-          <kbd className="rounded border px-1.5 py-0.5 text-[13px] text-muted-foreground">Space</kbd>
+          <kbd className="rounded-md border border-input px-1.5 py-0.5 text-[11px] font-semibold tracking-[0.06em] text-muted-foreground uppercase">Space</kbd>
         </div>
       </footer>
 
@@ -161,7 +162,7 @@ export default function Game({ joinCode }) {
           <DialogHeader>
             <DialogTitle>End this game?</DialogTitle>
           </DialogHeader>
-          <p className="text-[14px] text-muted-foreground">The game finishes for every player and results are saved.</p>
+          <p className="text-[15px] text-muted-foreground">Results are saved for every player.</p>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setConfirmEnd(false)}>Cancel</Button>
             <Button onClick={() => { send({ type: WS_CLIENT.finish }); setConfirmEnd(false); }}>End game</Button>
@@ -176,7 +177,7 @@ const PrimaryButton = forwardRef(function PrimaryButton({ primary, send, disable
   return (
     <Button
       ref={ref}
-      className="h-12 px-6 text-[18px]"
+      variant={primary.signal ? 'signal' : 'default'}
       disabled={disabled}
       onClick={() => (primary.nav ? navigate(primary.nav) : send({ type: primary.send }))}
     >
@@ -191,26 +192,37 @@ function Lobby({ joinCode, players }) {
   const shown = players.slice(0, 36);
   const extra = players.length - shown.length;
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-[3vh] text-center">
-      <p className="text-[3vw] font-medium">Join at {location.host}/play</p>
-      <div className="flex items-center gap-[3vw]">
-        {qr && <img src={qr} alt={`QR code for ${url}`} className="h-[22vh] w-[22vh]" aria-label={`QR code for ${url}`} />}
-        <div className="tabular text-[clamp(6rem,13vw,14rem)] font-bold leading-none tracking-[0.06em]">{joinCode}</div>
+    <div className="flex flex-col items-center gap-[5vh]">
+      <div className="flex flex-col items-center gap-[3vw] min-[1280px]:flex-row min-[1280px]:items-stretch">
+        <SpecTag className="w-[min(720px,80vw)]">
+          <div className="flex flex-col items-center py-[4vh]">
+            <div className="tabular text-[clamp(5rem,11vw,11rem)] leading-none font-semibold tracking-[0.04em]">{joinCode}</div>
+            <span className="mt-[2.5vh] h-0.5 w-20 bg-signal" aria-hidden="true" />
+          </div>
+          <SpecRow label="Join at" className="sm:items-center">
+            <span className="text-[clamp(1.1rem,2vw,2.2rem)] font-medium">{location.host}/play</span>
+          </SpecRow>
+          <SpecRow label="Players" className="sm:items-center">
+            <span className="tabular text-[clamp(1.1rem,2vw,2.2rem)] font-medium">{players.length}</span>
+          </SpecRow>
+        </SpecTag>
+        {qr && (
+          <div className="flex items-center rounded-md border bg-card p-3 shadow-label">
+            <img src={qr} alt={`QR code for ${url}`} className="h-[18vh] w-[18vh]" />
+          </div>
+        )}
       </div>
       {players.length === 0 ? (
-        <p className="text-[2vw] text-muted-foreground">Waiting for players…</p>
+        <p className="text-[clamp(1rem,1.4vw,1.6rem)] text-muted-foreground">Waiting for players…</p>
       ) : (
-        <>
-          <p className="text-[2.5vw] font-semibold">{plural(players.length, 'player', 'players')}</p>
-          <ul className="flex max-w-[70vw] flex-wrap justify-center gap-[0.8vw]">
-            {[...shown].reverse().map((p) => (
-              <li key={p.playerId} className="rounded-md bg-muted px-[1vw] py-[0.4vw] text-[1.4vw]">
-                {p.alias}
-              </li>
-            ))}
-            {extra > 0 && <li className="rounded-md bg-muted px-[1vw] py-[0.4vw] text-[1.4vw]">+{extra} more</li>}
-          </ul>
-        </>
+        <ul className="flex max-h-[calc(3*(1.3vw*1.5+1.4vw)+2*0.8vw)] max-w-[70vw] flex-wrap justify-center gap-[0.8vw] overflow-hidden">
+          {[...shown].reverse().map((p) => (
+            <li key={p.playerId} className="rounded-full border border-input px-[1.1vw] py-[0.35vw] text-[1.3vw]">
+              {p.alias}
+            </li>
+          ))}
+          {extra > 0 && <li className="rounded-full border border-input px-[1.1vw] py-[0.35vw] text-[1.3vw] text-muted-foreground">+{extra} more</li>}
+        </ul>
       )}
     </div>
   );
@@ -218,51 +230,44 @@ function Lobby({ joinCode, players }) {
 
 function QuestionStage({ open, k, n, question, remaining, answered, total, counts, correctIndex, leaderboard, deltas, showLeaderboard }) {
   return (
-    <div className="flex flex-1 gap-[3vw]">
-      <div className="flex-1">
-        <div className="flex items-baseline justify-between">
-          <p className="text-[1.6vw] text-muted-foreground">Question {k} of {n}</p>
+    <div className="flex w-full items-center gap-[3vw]">
+      <div className="min-w-0 flex-1">
+        <div className="flex items-start justify-between">
+          <p className="tabular text-[1.4vw] text-muted-foreground">Question {k} / {n}</p>
           {open && (
             <div className="text-right">
-              <div className={`tabular text-[6vw] font-bold leading-none ${remaining <= 5 ? 'text-destructive' : ''}`}>{remaining}</div>
-              <div className="tabular text-[1.4vw] text-muted-foreground">{answered} / {total} answered</div>
+              <div className={`tabular text-[5vw] leading-none font-semibold ${remaining <= 5 ? 'text-destructive' : ''}`}>{remaining}</div>
+              <div className="tabular mt-[0.6vh] text-[1.2vw] text-muted-foreground">{answered} / {total} answered</div>
             </div>
           )}
         </div>
-        <h1 className="mt-[2vh] max-w-[28ch] text-[3.4vw] font-semibold text-balance">{question.text}</h1>
-        <div className="mt-[4vh] grid grid-cols-2 gap-[1.5vw]">
+        <h1 className="mx-auto mt-[4vh] max-w-[26ch] text-center text-[3.2vw] leading-[1.15] font-medium tracking-[-0.02em]">{question.text}</h1>
+        <div className="mt-[5vh] grid grid-cols-2 gap-[1.2vw]">
           {question.options.map((opt, i) => {
             const isCorrect = correctIndex === i;
             const dim = correctIndex !== null && !isCorrect;
+            const share = totalPick(counts) ? (counts[i] / totalPick(counts)) * 100 : 0;
             return (
               <div
                 key={i}
-                className={`flex min-h-[18vh] flex-col rounded-xl border-2 p-[2vw] ${dim ? 'opacity-45' : ''}`}
-                style={isCorrect ? { background: 'var(--success-muted)', borderColor: 'var(--success)', borderWidth: 3 } : {}}
+                className={`flex min-h-[16vh] flex-col justify-center rounded-md border bg-card px-[2vw] py-[2.4vh] transition-opacity ${dim ? 'opacity-40' : ''} ${isCorrect ? 'border-2 border-success bg-success-muted' : ''}`}
               >
-                <div className="flex items-center gap-[1vw]">
-                  <OptionShape index={i} size={undefined} className="h-[3vw] w-[3vw]" />
-                  <span className="text-[2.4vw] font-medium">{opt}</span>
+                <div className="flex items-center gap-[1.2vw]">
+                  <OptionShape index={i} size={undefined} className="h-[2.4vw] w-[2.4vw] shrink-0" />
+                  <span className="min-w-0 flex-1 text-[2.2vw] leading-tight font-medium">{opt}</span>
+                  {isCorrect && (
+                    <span className="flex items-center gap-[0.5vw] text-success">
+                      <Check className="h-[2vw] w-[2vw]" aria-hidden="true" />
+                      <span className="text-[1.2vw] font-semibold tracking-[0.08em] uppercase">Correct</span>
+                    </span>
+                  )}
                 </div>
-                {isCorrect && (
-                  <div className="mt-[0.6vh] flex items-center gap-[0.5vw] text-success">
-                    <CircleCheck className="h-[3vw] w-[3vw]" aria-hidden="true" />
-                    <span className="text-[1.4vw] font-semibold">Correct answer</span>
-                  </div>
-                )}
                 {correctIndex !== null && (
-                  <div className="mt-auto flex items-center gap-[1vw] pt-[1vh]">
-                    <div className="h-[1.2vh] flex-1 rounded bg-foreground/15">
-                      <div
-                        className="h-full rounded"
-                        style={{
-                          width: `${totalPick(counts) ? (counts[i] / totalPick(counts)) * 100 : 0}%`,
-                          background: isCorrect ? 'var(--success)' : 'var(--foreground)',
-                          opacity: isCorrect ? 1 : 0.4,
-                        }}
-                      />
+                  <div className="mt-[2vh] flex items-center gap-[1vw]">
+                    <div className="h-0.5 flex-1 bg-foreground/10">
+                      <div className={`h-full ${isCorrect ? 'bg-success' : 'bg-foreground/30'}`} style={{ width: `${share}%` }} />
                     </div>
-                    <span className="tabular text-[1.6vw]">{counts[i] ?? 0}</span>
+                    <span className="tabular text-[1.4vw]">{counts[i] ?? 0}</span>
                   </div>
                 )}
               </div>
@@ -271,19 +276,20 @@ function QuestionStage({ open, k, n, question, remaining, answered, total, count
         </div>
       </div>
       {showLeaderboard && (
-        <aside className="w-[26vw] shrink-0 max-[1400px]:w-full">
-          <h2 className="text-[1.8vw] font-semibold">Leaderboard</h2>
-          <ol className="mt-[2vh] space-y-[1vh]">
-            {leaderboard.slice(0, 5).map((p, i) => (
-              <li key={p.playerId} className="flex items-baseline gap-[1vw]">
-                <span className="tabular w-[2vw] text-[1.6vw] text-muted-foreground">{i + 1}</span>
-                <span className="flex-1 truncate text-[2vw] font-medium">{p.alias}</span>
-                {deltas[p.playerId] > 0 && <span className="tabular text-[1.2vw] text-success">+{deltas[p.playerId]}</span>}
-                <span className="tabular text-[2vw] font-semibold">{p.score}</span>
-              </li>
-            ))}
-          </ol>
-        </aside>
+        <SpecTag
+          as="aside"
+          className="w-[28vw] shrink-0"
+          title={<span className="text-[1.6vw] font-medium">Leaderboard</span>}
+        >
+          {leaderboard.slice(0, 5).map((p, i) => (
+            <div key={p.playerId} className="flex items-baseline gap-[1vw] px-5 py-[1.4vh]">
+              <span className="tabular w-[2vw] text-[1.4vw] text-muted-foreground">{i + 1}</span>
+              <span className="min-w-0 flex-1 truncate text-[1.8vw] font-medium">{p.alias}</span>
+              {deltas[p.playerId] > 0 && <span className="tabular text-[1.1vw] text-success">+{deltas[p.playerId]}</span>}
+              <span className="tabular text-[1.8vw] font-semibold">{p.score}</span>
+            </div>
+          ))}
+        </SpecTag>
       )}
     </div>
   );
@@ -292,18 +298,18 @@ const totalPick = (counts) => counts.reduce((a, b) => a + b, 0);
 
 function Finished({ leaderboard, questionCount }) {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-[3vh]">
-      <h1 className="text-[3vw] font-semibold">Final results</h1>
-      <ol className="w-[60vw] space-y-[1.2vh]">
+    <div className="flex flex-col items-center gap-[4vh]">
+      <h1 className="text-[3vw] font-medium tracking-[-0.02em]">Results</h1>
+      <SpecTag className="w-[min(960px,70vw)]">
         {leaderboard.slice(0, 10).map((p, i) => (
-          <li key={p.playerId} className={`flex items-baseline gap-[2vw] ${i < 3 ? 'text-[3vw]' : 'text-[2vw]'}`}>
+          <div key={p.playerId} className={`flex items-baseline gap-[2vw] px-[2vw] py-[1.6vh] ${i < 3 ? 'text-[2.6vw]' : 'text-[1.8vw]'}`}>
             <span className="tabular w-[3vw] text-muted-foreground">{i + 1}</span>
-            <span className="flex-1 truncate font-medium">{p.alias}</span>
+            <span className="min-w-0 flex-1 truncate font-medium">{p.alias}</span>
             <span className="tabular font-semibold">{p.score}</span>
-          </li>
+          </div>
         ))}
-      </ol>
-      <p className="text-[1.4vw] text-muted-foreground">
+      </SpecTag>
+      <p className="tabular text-[1.3vw] text-muted-foreground">
         {plural(leaderboard.length, 'player', 'players')} · {plural(questionCount, 'question', 'questions')}
       </p>
     </div>

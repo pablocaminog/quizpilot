@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-// The 8px top drain bar. Remaining time derives only from server values:
+// The 4px top drain line. Remaining time derives only from server values:
 // offset = serverNowMs - Date.now() once per question, then
 // remaining = deadlineMs - (Date.now() + offset).
 export function useServerClock() {
@@ -38,13 +38,13 @@ export default function TimerBar({ deadlineMs, now, active }) {
   if (!active || !deadlineMs) return null;
   const seconds = Math.ceil(remaining / 1000);
   return (
-    <div className="fixed inset-x-0 top-0 z-50 h-2 bg-muted" role="timer" aria-label={`${seconds} seconds remaining`}>
+    <div className="fixed inset-x-0 top-0 z-50 h-1 bg-border" role="timer" aria-label={`${seconds} seconds remaining`}>
       <div
         ref={barRef}
         className="h-full w-full"
         style={{
           transformOrigin: 'left',
-          background: seconds <= 5 ? 'var(--destructive)' : 'var(--primary)',
+          background: 'var(--signal)',
           ...(reduced ? { transform: `scaleX(${startRef.current.from ? remaining / startRef.current.from : 1})` } : {}),
         }}
       />

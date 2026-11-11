@@ -6,6 +6,8 @@ import { errorMessage } from '@/lib/messages';
 import { Conversation, DrafterMessage, HostMessage } from '@/components/ai/conversation';
 import { PromptInput } from '@/components/ai/prompt-input';
 import { Sources } from '@/components/ai/sources';
+import { StageHeading } from '@/components/stage';
+import { plural } from '@/lib/format';
 
 const STATUS_BY_KIND = [
   [/read|source|attach/i, 'Reading the source…'],
@@ -65,7 +67,7 @@ export default function DraftStage({ quiz, source, onProposed, onReview }) {
         setStreaming(false);
         const proposal = parseProposal(JSON.parse(e.data).text);
         if (!proposal) {
-          push({ role: 'drafter', kind: 'error', text: "This draft didn't pass validation: the reply wasn't valid JSON. Ask for a revision." });
+          push({ role: 'drafter', kind: 'error', text: "The draft wasn't valid. Ask for a revision.", retry: true });
           return;
         }
         try {
@@ -75,7 +77,7 @@ export default function DraftStage({ quiz, source, onProposed, onReview }) {
           push({
             role: 'drafter',
             kind: 'proposal',
-            text: `Proposed ${saved.questions.length} questions.`,
+            text: `${plural(saved.questions.length, 'question', 'questions')} proposed`,
             citations,
             aiGenerated: saved.questions.every((q) => q.provenance === 'AI-generated'),
           });
@@ -83,7 +85,7 @@ export default function DraftStage({ quiz, source, onProposed, onReview }) {
           push({
             role: 'drafter',
             kind: 'error',
-            text: `This draft didn't pass validation: ${err.message ?? 'invalid question set'}. Ask for a revision.`,
+            text: `The draft wasn't valid: ${err.message ?? 'invalid question set'}`,
             retry: true,
           });
         }
@@ -109,39 +111,32 @@ export default function DraftStage({ quiz, source, onProposed, onReview }) {
   };
 
   return (
-    <div className="flex h-[calc(100dvh-56px-4rem)] flex-col space-y-4">
-      <div>
-        <h2 className="text-[18px] font-semibold tracking-[-0.01em]">Draft with AI</h2>
-        <p className="mt-1 text-[14px] text-muted-foreground">
-          Describe what you want. The drafter only proposes; nothing is saved until you review it.
-        </p>
-      </div>
+    <div className={`flex flex-col ${messages.length || streaming ? 'h-[calc(100dvh-56px-8rem-92px)] min-h-[480px]' : ''}`}>
+      <StageHeading step title="Draft with AI" hint="Nothing is saved until you review it." />
 
       <Conversation>
-        {messages.length === 0 && !streaming && <div className="flex-1" />}
+        
         {messages.map((m, i) =>
           m.role === 'host' ? (
             <HostMessage key={i}>{m.text}</HostMessage>
           ) : (
             <DrafterMessage key={i}>
               {m.kind === 'error' ? (
-                <div className="flex items-start gap-3 rounded-lg border bg-destructive-muted p-4">
-                  <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-                  <div>
-                    <p className="text-[14px]">{m.text}</p>
-                    {m.retry && (
-                      <Button variant="secondary" size="sm" className="mt-2" onClick={() => send(lastInstruction.current)}>
-                        Try again
-                      </Button>
-                    )}
-                  </div>
+                <div className="flex items-center gap-3 rounded-md border border-destructive/30 bg-destructive-muted px-4 py-3">
+                  <AlertCircle className="size-4 shrink-0 text-destructive" aria-hidden="true" />
+                  <p className="flex-1 text-[14px]">{m.text}</p>
+                  {m.retry && (
+                    <Button variant="ghost" size="sm" onClick={() => send(lastInstruction.current)}>
+                      Retry
+                    </Button>
+                  )}
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <p>{m.text}</p>
                   {m.citations?.length > 0 && <Sources citations={m.citations} />}
-                  {m.aiGenerated && <p className="text-[13px] text-muted-foreground">All questions are marked AI-generated.</p>}
-                  {m.kind === 'proposal' && <Button onClick={onReview}>Review questions</Button>}
+                  {m.aiGenerated && <p className="type-small">Marked AI-generated.</p>}
+                  {m.kind === 'proposal' && <Button onClick={onReview}>Review</Button>}
                 </div>
               )}
             </DrafterMessage>
@@ -157,9 +152,9 @@ export default function DraftStage({ quiz, source, onProposed, onReview }) {
       </Conversation>
 
       {messages.length === 0 && !streaming && (
-        <div className="flex flex-wrap gap-2">
+        <div className="mb-4 flex flex-wrap justify-center gap-2">
           {suggestions.map((s) => (
-            <Button key={s} variant="outline" size="sm" className="text-[14px] whitespace-normal" onClick={() => setPrompt(s)}>
+            <Button key={s} variant="outline" size="sm" className="h-auto min-h-9 py-1.5 whitespace-normal" onClick={() => setPrompt(s)}>
               {s}
             </Button>
           ))}

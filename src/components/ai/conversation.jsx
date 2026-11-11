@@ -17,7 +17,7 @@ export function Conversation({ children, className }) {
         const el = e.currentTarget;
         pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
       }}
-      className={cn('flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto py-4', className)}
+      className={cn('flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto py-4', className)}
     >
       {children}
     </div>
@@ -27,7 +27,7 @@ export function Conversation({ children, className }) {
 export function DrafterMessage({ children }) {
   return (
     <div className="max-w-[85%]">
-      <div className="mb-1 text-[13px] text-muted-foreground">Drafter</div>
+      <div className="type-label mb-2">Drafter</div>
       <div className="text-[15px]">{children}</div>
     </div>
   );
@@ -35,6 +35,6 @@ export function DrafterMessage({ children }) {
 
 export function HostMessage({ children }) {
   return (
-    <div className="ml-auto max-w-[85%] rounded-lg bg-muted px-4 py-3 text-[15px]">{children}</div>
+    <div className="ml-auto max-w-[85%] rounded-md border bg-card px-4 py-3 text-[15px]">{children}</div>
   );
 }
