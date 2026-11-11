@@ -4,7 +4,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { api } from '@/lib/api';
 import { errorMessage } from '@/lib/messages';
 import { formatCaptured, formatCount } from '@/lib/format';
@@ -39,9 +38,9 @@ export function SourceSummary({ source }) {
           {source.kind === 'pdf_upload' ? 'PDF · ' : ''}Captured {formatCaptured(source.capturedAt)} · {formatCount(source.charCount)} characters
         </span>
       </div>
-      <ScrollArea className="max-h-40">
-        <p className="px-4 py-3 text-[14px] whitespace-pre-wrap">{source.excerpt}</p>
-      </ScrollArea>
+      <div className="max-h-40 overflow-y-auto" tabIndex={0} role="region" aria-label="Source excerpt">
+        <p className="px-4 py-3 text-[14px] whitespace-pre-wrap">{(source.excerpt ?? '').replace(/^#{1,6}\s+/gm, '').replace(/\n{3,}/g, '\n\n')}</p>
+      </div>
     </div>
   );
 }
