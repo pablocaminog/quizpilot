@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  readConversionMarkdown,
   parseHostBrief,
   parseSourceUrl,
   parseQuizProposal,
@@ -134,4 +135,16 @@ test('readQuickActionMarkdown normalizes Browser Run results', async () => {
   assert.equal(await readQuickActionMarkdown(new Response('# Raw markdown')), '# Raw markdown');
   assert.equal(await readQuickActionMarkdown({ success: true, result: '# Obj' }), '# Obj');
   assert.equal(await readQuickActionMarkdown(null), '');
+});
+
+test('readConversionMarkdown normalizes toMarkdown results', () => {
+  assert.equal(readConversionMarkdown({ format: 'markdown', data: '  hello  ' }), 'hello');
+  assert.equal(readConversionMarkdown([{ format: 'markdown', data: 'first' }, { data: 'second' }]), 'first');
+  assert.equal(readConversionMarkdown({ format: 'error', data: 'x' }), '');
+  assert.equal(readConversionMarkdown({ format: 'markdown', data: '   ' }), '');
+  assert.equal(readConversionMarkdown({ format: 'markdown' }), '');
+  assert.equal(readConversionMarkdown(null), '');
+  const envelope = (contents) => `# a.pdf\n## Metadata\n- PDFFormatVersion=1.4\n\n## Contents\n${contents}`;
+  assert.equal(readConversionMarkdown({ format: 'markdown', data: envelope('### Page 1\nHello QuizPilot') }), '### Page 1\nHello QuizPilot');
+  assert.equal(readConversionMarkdown({ format: 'markdown', data: envelope('### Page 1\n\n### Page 2\n') }), '');
 });

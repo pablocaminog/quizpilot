@@ -9,6 +9,7 @@ import {
   parseSourceUrl,
   parsePasteSource,
   parseGenerateSource,
+  readConversionMarkdown,
   parseDraftInstruction,
   parseQuizProposal,
   parseAlias,
@@ -72,7 +73,7 @@ app.use('*', async (c, next) => {
   await next();
 });
 
-app.use('/api/*', bodyLimit({ maxSize: LIMITS.uploadBytes + 4096, onError: (c) => jsonError(c, 413, ERRORS.bodyTooLarge) }));
+app.use('/api/*', bodyLimit({ maxSize: LIMITS.pdfBytes + 4096, onError: (c) => jsonError(c, 413, ERRORS.bodyTooLarge) }));
 
 // Same-origin enforcement for unsafe browser requests.
 app.use('/api/*', async (c, next) => {
@@ -242,7 +243,53 @@ app.put('/api/v1/quizzes/:quizId/source/upload', async (c) => {
   if (buffer.byteLength > LIMITS.uploadBytes) return jsonError(c, 413, ERRORS.bodyTooLarge);
   if (!buffer.byteLength) return jsonError(c, 400, ERRORS.invalidInput, 'The document is empty.', 'document');
   const text = new TextDecoder('utf-8', { fatal: false }).decode(buffer);
-  const source = await writeSource(c, quiz.id, 'text_upload', c.req.header('x-filename') ?? 'Text document', text.slice(0, LIMITS.sourceContent));
+  const source = await writeSource(c, quiz.id, 'text_upload', uploadName(c, 'Text document'), text.slice(0, LIMITS.sourceContent));
+  return c.json({ source });
+});
+
+// Filenames arrive URI-encoded (headers are Latin-1 only); bound the label.
+function uploadName(c, fallback) {
+  const raw = c.req.header('x-filename');
+  if (!raw) return fallback;
+  let name;
+  try {
+    name = decodeURIComponent(raw);
+  } catch {
+    name = raw;
+  }
+  return name.trim().slice(0, 200) || fallback;
+}
+
+app.put('/api/v1/quizzes/:quizId/source/pdf', async (c) => {
+  const quiz = await ownedQuiz(c, c.get('hostSessionId'), c.req.param('quizId'));
+  if (!quiz || quiz.status !== 'draft') return jsonError(c, quiz ? 409 : 404, quiz ? ERRORS.quizNotEditable : ERRORS.quizNotFound);
+  const type = (c.req.header('content-type') ?? '').split(';')[0].trim().toLowerCase();
+  if (type !== 'application/pdf') return jsonError(c, 400, ERRORS.invalidInput, 'Only application/pdf documents are supported.', 'document');
+  const buffer = await c.req.arrayBuffer();
+  if (buffer.byteLength > LIMITS.pdfBytes) return jsonError(c, 413, ERRORS.bodyTooLarge);
+  if (!buffer.byteLength) return jsonError(c, 400, ERRORS.invalidInput, 'The document is empty.', 'document');
+  const magic = new TextDecoder().decode(buffer.slice(0, 5));
+  if (magic !== '%PDF-') return jsonError(c, 400, ERRORS.invalidInput, "This file isn't a valid PDF.", 'document');
+
+  const filename = uploadName(c, 'PDF document');
+  let markdown;
+  try {
+    const result = await c.env.AI.toMarkdown({
+      name: filename,
+      blob: new Blob([buffer], { type: 'application/pdf' }),
+    });
+    markdown = readConversionMarkdown(result);
+  } catch (error) {
+    console.error(JSON.stringify({ event: 'pdf_convert_error', error: String(error) }));
+    return jsonError(c, 422, ERRORS.sourceUnreadable);
+  }
+  if (!markdown) {
+    return jsonError(c, 422, ERRORS.sourceUnreadable, "We couldn't find selectable text in this PDF. Scanned PDFs aren't supported yet; paste the text instead.");
+  }
+  const source = await writeSource(c, quiz.id, 'pdf_upload', filename, markdown.slice(0, LIMITS.sourceContent));
+  await c.env.SOURCES.put(`sources/${quiz.id}/${source.id}.pdf`, buffer, {
+    httpMetadata: { contentType: 'application/pdf' },
+  });
   return c.json({ source });
 });
 

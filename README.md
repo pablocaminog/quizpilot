@@ -2,7 +2,7 @@
 
 A Kahoot-style live quiz app on Cloudflare. A host describes a learning goal,
 picks a source (pasted text, a public web page rendered by Cloudflare Kitesurf,
-a text document, or an original AI brief), reviews an AI-drafted quiz, publishes
+a PDF or text document, or an original AI brief), reviews an AI-drafted quiz, publishes
 it, and runs a real-time game over WebSockets.
 
 ## Deploy to Cloudflare

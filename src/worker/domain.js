@@ -12,6 +12,7 @@ export const LIMITS = {
   briefText: 2000,
   pasteText: 60000,
   uploadBytes: 512 * 1024,
+  pdfBytes: 10 * 1024 * 1024,
   sourceContent: 60000,
   instruction: 2000,
   aliasMin: 1,
@@ -182,6 +183,22 @@ export function parseQuizProposal(body, sourceKind) {
     });
   }
   return { ok: true, value: { questions: out } };
+}
+
+/**
+ * Normalize the Workers AI toMarkdown ConversionResult: a single result or an
+ * array (first entry wins); 'error' format or missing/blank data yields ''.
+ */
+export function readConversionMarkdown(result) {
+  const entry = Array.isArray(result) ? result[0] : result;
+  if (!entry || entry.format === 'error') return '';
+  const data = typeof entry.data === 'string' ? entry.data : '';
+  // PDF conversions wrap content in a "# name / ## Metadata / ## Contents"
+  // envelope; keep only the contents, and treat page headings alone (an
+  // image-only scan) as no readable text.
+  const marker = data.indexOf('\n## Contents\n');
+  const body = (marker === -1 ? data : data.slice(marker + '\n## Contents\n'.length)).trim();
+  return body.replace(/^#{1,6} Page \d+\s*$/gm, '').trim() ? body : '';
 }
 
 export function parseAlias(body) {

@@ -329,3 +329,41 @@ test('spa serves the built shell for client routes', async () => {
   const html = await res.text();
   assert.match(html, /app-shell|QuizPilot|astro/i);
 });
+
+test('pdf source upload', async () => {
+  const session = await api('/api/v1/host-session', { method: 'POST', body: {} });
+  const host = cookieFrom(session.response, 'qp_host');
+  const created = await api('/api/v1/quizzes', { method: 'POST', cookie: host, body: { title: 'PDF', audience: 'a', learningGoal: 'g' } });
+  const quizId = created.json.quiz.id;
+  const put = async (body, headers) => {
+    const res = await fetch(`${BASE}/api/v1/quizzes/${quizId}/source/pdf`, {
+      method: 'PUT', headers: { cookie: host, 'x-filename': 'sample.pdf', ...headers }, body,
+    });
+    return { status: res.status, json: await res.json().catch(() => null) };
+  };
+
+  // non-PDF bytes are rejected
+  const bad = await put(Buffer.from('not a pdf'), { 'content-type': 'application/pdf' });
+  assert.equal(bad.status, 400);
+  assert.equal(bad.json.error, 'INVALID_INPUT');
+
+  // over 10 MiB is rejected
+  const big = await put(Buffer.alloc(10 * 1024 * 1024 + 1), { 'content-type': 'application/pdf' });
+  assert.equal(big.status, 413);
+  assert.equal(big.json.error, 'BODY_TOO_LARGE');
+
+  // a real minimal PDF: local AI.toMarkdown is unsupported, so the honest
+  // outcome is 422 SOURCE_UNREADABLE and no source row is created.
+  const pdf = Buffer.from('%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>endobj\n4 0 obj<</Length 58>>stream\nBT /F1 24 Tf 72 720 Td (Hello QuizPilot) Tj ET\nendstream\nendobj\n5 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj\nxref\n0 6\n0000000000 65535 f \ntrailer<</Size 6/Root 1 0 R>>\nstartxref\n0\n%%EOF');
+  const res = await put(pdf, { 'content-type': 'application/pdf' });
+  assert.equal(res.status, 422, JSON.stringify(res.json));
+  assert.equal(res.json.error, 'SOURCE_UNREADABLE');
+  const rows = d1(`SELECT COUNT(*) AS n FROM sources WHERE quiz_id='${quizId}'`);
+  assert.equal(rows[0].n, 0);
+
+  // text upload over 512 KiB is still rejected
+  const bigText = await fetch(`${BASE}/api/v1/quizzes/${quizId}/source/upload`, {
+    method: 'PUT', headers: { cookie: host, 'content-type': 'text/plain' }, body: Buffer.alloc(512 * 1024 + 1, 'a'),
+  });
+  assert.equal(bigText.status, 413);
+});

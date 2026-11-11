@@ -14,7 +14,7 @@ import {
 
 const TILES = [
   { kind: 'url', icon: Globe, title: 'Website URL', desc: 'A public page, rendered and captured with Cloudflare Kitesurf.' },
-  { kind: 'text_upload', icon: FileText, title: 'Text document', desc: '.txt or .md, up to 512 KB.' },
+  { kind: 'text_upload', icon: FileText, title: 'Document', desc: 'PDF, .txt, or .md. PDFs up to 10 MB.' },
   { kind: 'paste', icon: ClipboardType, title: 'Paste text', desc: 'Notes, an article, or a transcript.' },
   { kind: 'generate', icon: PenLine, title: 'Create from brief', desc: 'No source. Every question is marked AI-generated.' },
 ];
@@ -36,7 +36,7 @@ export function SourceSummary({ source }) {
           <span className="text-[15px] font-medium">{source.label}</span>
         )}
         <span className="tabular ml-auto text-[13px] text-muted-foreground">
-          Captured {formatCaptured(source.capturedAt)} · {formatCount(source.charCount)} characters
+          {source.kind === 'pdf_upload' ? 'PDF · ' : ''}Captured {formatCaptured(source.capturedAt)} · {formatCount(source.charCount)} characters
         </span>
       </div>
       <ScrollArea className="max-h-40">
@@ -47,12 +47,13 @@ export function SourceSummary({ source }) {
 }
 
 export default function SourceStage({ quiz, source, onSaved, readOnly }) {
-  const [kind, setKind] = useState(source?.kind ?? 'url');
+  const [kind, setKind] = useState(source?.kind === 'pdf_upload' ? 'text_upload' : source?.kind ?? 'url');
   const [url, setUrl] = useState('');
   const [text, setText] = useState('');
   const [brief, setBrief] = useState('');
   const [file, setFile] = useState(null);
   const [drag, setDrag] = useState(false);
+  const fileIsPdf = file?.type === 'application/pdf' || file?.name?.toLowerCase().endsWith('.pdf');
   const [pending, setPending] = useState(false);
   const [error, setError] = useState(null);
   const fileRef = useRef(null);
@@ -69,12 +70,23 @@ export default function SourceStage({ quiz, source, onSaved, readOnly }) {
         await api('sourceGenerate', { quizId: quiz.id }, { body: { brief } });
       } else if (kind === 'text_upload') {
         if (!file) return;
-        const type = file.type || (file.name.endsWith('.md') ? 'text/markdown' : 'text/plain');
-        if (!['text/plain', 'text/markdown'].includes(type)) {
-          setError('Only text/plain or text/markdown documents are supported.');
+        const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+        const isText = ['text/plain', 'text/markdown'].includes(file.type) || /\.(txt|md)$/i.test(file.name);
+        if (!isPdf && !isText) {
+          setError('Choose a PDF, .txt, or .md file.');
           return;
         }
-        await api('sourceUpload', { quizId: quiz.id }, { body: file, raw: true, headers: { 'content-type': type, 'x-filename': file.name } });
+        if ((isPdf && file.size > 10 * 1024 * 1024) || (!isPdf && file.size > 512 * 1024)) {
+          setError('This file is too large. PDFs can be up to 10 MB and text files up to 512 KB.');
+          return;
+        }
+        const filename = encodeURIComponent(file.name);
+        if (isPdf) {
+          await api('sourcePdf', { quizId: quiz.id }, { body: file, raw: true, headers: { 'content-type': 'application/pdf', 'x-filename': filename } });
+        } else {
+          const type = file.type || (file.name.endsWith('.md') ? 'text/markdown' : 'text/plain');
+          await api('sourceUpload', { quizId: quiz.id }, { body: file, raw: true, headers: { 'content-type': type, 'x-filename': filename } });
+        }
       }
       onSaved();
     } catch (e) {
@@ -160,15 +172,25 @@ export default function SourceStage({ quiz, source, onSaved, readOnly }) {
             <input
               ref={fileRef}
               type="file"
-              accept=".txt,.md,text/plain,text/markdown"
+              accept=".pdf,.txt,.md,application/pdf,text/plain,text/markdown"
               className="sr-only"
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             />
           </div>
           <Button onClick={submit} disabled={disabled}>
             {pending && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
-            Use this document
+            {pending ? (fileIsPdf ? 'Extracting…' : 'Uploading…') : 'Use this document'}
           </Button>
+          {pending && fileIsPdf && (
+            <div className="space-y-2 rounded-lg border p-4">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-5/6" />
+              <Skeleton className="h-4 w-2/3" />
+              <p className="text-[13px] text-muted-foreground">
+                Extracting text from the PDF. Large files can take up to a minute.
+              </p>
+            </div>
+          )}
         </div>
       )}
 

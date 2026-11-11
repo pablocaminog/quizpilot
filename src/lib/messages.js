@@ -19,5 +19,6 @@ export function errorMessage(e) {
   if (e.error === ERRORS.invalidInput) {
     return `Check ${e.field ?? 'the form'}: ${e.message ?? 'invalid input.'}`;
   }
-  return COPY[e.error] ?? e.message ?? 'Something went wrong. Try again.';
+  if (e.message) return e.message;
+  return COPY[e.error] ?? 'Something went wrong. Try again.';
 }

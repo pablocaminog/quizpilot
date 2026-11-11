@@ -2,7 +2,7 @@ import { useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowUp, Square, Globe, FileText, ClipboardType, PenLine } from 'lucide-react';
 
-const KIND_ICONS = { url: Globe, text_upload: FileText, paste: ClipboardType, generate: PenLine };
+const KIND_ICONS = { url: Globe, text_upload: FileText, pdf_upload: FileText, paste: ClipboardType, generate: PenLine };
 
 export function SourceChip({ source }) {
   if (!source) return null;

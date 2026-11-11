@@ -21,6 +21,7 @@ export const ROUTES = {
   sourceUrl: 'PUT /api/v1/quizzes/:quizId/source/url',
   sourcePaste: 'PUT /api/v1/quizzes/:quizId/source/paste',
   sourceUpload: 'PUT /api/v1/quizzes/:quizId/source/upload',
+  sourcePdf: 'PUT /api/v1/quizzes/:quizId/source/pdf',
   sourceGenerate: 'PUT /api/v1/quizzes/:quizId/source/generate',
   putQuestions: 'PUT /api/v1/quizzes/:quizId/questions',
   publishQuiz: 'POST /api/v1/quizzes/:quizId/publish',
@@ -113,7 +114,7 @@ export const WS_ERRORS = {
 };
 
 /** Source kinds a quiz may select (exactly one active source per quiz). */
-export const SOURCE_KINDS = ['paste', 'url', 'text_upload', 'generate'];
+export const SOURCE_KINDS = ['paste', 'url', 'text_upload', 'pdf_upload', 'generate'];
 
 /** Quiz lifecycle states. */
 export const QUIZ_STATUSES = ['draft', 'published', 'archived'];

@@ -17,7 +17,7 @@ Astro (static, JavaScript only) with React islands and shadcn/ui (New York, JSX,
 
 ## Product Purpose
 
-A host describes a learning goal in chat, picks a source (website URL, pasted text, text document, or an original brief), reviews and edits the AI-drafted quiz, publishes it, and runs a real-time Kahoot-style game. Success: a host goes from a source to a projected live game in minutes, and every question is traceable to its source or explicitly marked AI-generated.
+A host describes a learning goal in chat, picks a source (website URL, pasted text, a PDF or text document, or an original brief), reviews and edits the AI-drafted quiz, publishes it, and runs a real-time Kahoot-style game. Success: a host goes from a source to a projected live game in minutes, and every question is traceable to its source or explicitly marked AI-generated.
 
 ## Positioning
 
@@ -31,7 +31,7 @@ Every question carries provenance: exact cited excerpts from a captured source s
 
 ## Capabilities and Constraints
 
-- Sources: public unauthenticated HTTPS webpages only (no bot-protected/authenticated pages), pasted text, UTF-8 `text/plain` / `text/markdown` documents under 512 KiB, or a generation brief. No PDF/Office.
+- Sources: public unauthenticated HTTPS webpages only (no bot-protected/authenticated pages), pasted text, UTF-8 `text/plain` / `text/markdown` documents under 512 KiB, PDFs with selectable text under 10 MiB (extracted with Workers AI `toMarkdown`; scanned/image-only PDFs are rejected), or a generation brief. No Office documents.
 - Quizzes: 2–20 questions, 2–4 options, one correct answer, 5–120 s timer each.
 - Host identity is an opaque browser cookie; no accounts or recovery.
 - Deployment requires Cloudflare authorization; never claim anonymous deployment.
