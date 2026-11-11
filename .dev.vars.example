@@ -1,0 +1,3 @@
+# QuizPilot has no required secrets: the quiz-drafting model runs on Workers AI
+# through the AI binding declared in wrangler.jsonc. Add optional local-only
+# overrides here (copy to .dev.vars, never commit).

@@ -1,0 +1,31 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "quizpilot",
+  "compatibility_date": "2026-10-23",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "observability": { "enabled": true },
+  "assets": {
+    "directory": "./dist/client",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/ws/*"]
+  },
+  "d1_databases": [
+    { "binding": "DB", "database_name": "quizpilot-db", "migrations_dir": "migrations" }
+  ],
+  "r2_buckets": [
+    { "binding": "SOURCES", "bucket_name": "quizpilot-sources" }
+  ],
+  "ai": { "binding": "AI" },
+  "browser": { "binding": "BROWSER", "remote": true },
+  "durable_objects": {
+    "bindings": [
+      { "name": "QUIZ_ROOM", "class_name": "QuizRoom" }
+    ]
+  },
+  "migrations": [
+    { "tag": "flue-quiz-drafter-v1", "new_sqlite_classes": ["FlueQuizDrafterAgent"] },
+    { "tag": "quiz-room-v1", "new_sqlite_classes": ["QuizRoom"] }
+  ]
+}
