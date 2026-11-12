@@ -9,6 +9,7 @@ const COPY = {
   [ERRORS.quizNotEditable]: "Published quizzes can't be edited.",
   [ERRORS.bodyTooLarge]: 'That input is too large.',
   [ERRORS.invalidJson]: 'The request could not be read.',
+  [WS_ERRORS.earlyAnswer]: "Answers aren't open yet.",
   [WS_ERRORS.lateAnswer]: 'Time ran out before your answer arrived.',
   [WS_ERRORS.duplicateAnswer]: "You've already answered this question.",
   NETWORK: 'Connection lost. Reconnecting…',

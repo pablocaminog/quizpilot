@@ -13,6 +13,8 @@ import {
   parseDraftInstruction,
   parseQuizProposal,
   parseAlias,
+  parseQuizSettings,
+  readSettings,
   parseJoinCode,
   readQuickActionMarkdown,
 } from './domain.js';
@@ -144,7 +146,7 @@ app.get('/api/v1/quizzes/:quizId', async (c) => {
     latestView = sourceView(latest, object ? (await object.text()).slice(0, 600) : '');
   }
   return c.json({
-    quiz: quizView(quiz),
+    quiz: { ...quizView(quiz), settings: readSettings(quiz.settings_json) },
     source: latestView,
     sources: sources.results.map((s) => sourceView(s)),
     questions: questions.results.map(questionView),
@@ -327,6 +329,19 @@ app.put('/api/v1/quizzes/:quizId/questions', async (c) => {
   return c.json({ questions: proposal.value.questions.map((q, i) => ({ position: i, ...q })) });
 });
 
+app.put('/api/v1/quizzes/:quizId/settings', async (c) => {
+  const quiz = await ownedQuiz(c, c.get('hostSessionId'), c.req.param('quizId'));
+  if (!quiz) return jsonError(c, 404, ERRORS.quizNotFound);
+  if (quiz.status === 'archived') return jsonError(c, 409, ERRORS.quizNotEditable);
+  const body = await readBody(c, JSON_LIMIT);
+  if (!body.ok) return bad(c, body);
+  const parsed = parseQuizSettings(body.value, readSettings(quiz.settings_json));
+  if (!parsed.ok) return bad(c, parsed);
+  await c.env.DB.prepare('UPDATE quizzes SET settings_json=?, updated_at=? WHERE id=?')
+    .bind(JSON.stringify(parsed.value), Date.now(), quiz.id).run();
+  return c.json({ settings: parsed.value });
+});
+
 app.post('/api/v1/quizzes/:quizId/publish', async (c) => {
   const quiz = await ownedQuiz(c, c.get('hostSessionId'), c.req.param('quizId'));
   if (!quiz) return jsonError(c, 404, ERRORS.quizNotFound);
@@ -353,6 +368,7 @@ app.post('/api/v1/quizzes/:quizId/games', async (c) => {
   if (quiz.status !== 'published') return jsonError(c, 409, ERRORS.quizNotEditable, 'Only a published quiz can start a game.');
   const questions = await c.env.DB.prepare('SELECT * FROM questions WHERE quiz_id=? ORDER BY position').bind(quiz.id).all();
   if (!questions.results.length) return jsonError(c, 400, ERRORS.invalidInput, 'The quiz has no questions.', 'questions');
+  const settings = readSettings(quiz.settings_json);
 
   // Collision-checked six-character uppercase join code.
   const alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -364,9 +380,34 @@ app.post('/api/v1/quizzes/:quizId/games', async (c) => {
   }
   if (!joinCode) return jsonError(c, 500, ERRORS.internal);
 
+  // Build the played question list: shuffle order, shuffle options (remapping
+  // correctIndex), and apply the fixed timer when timerMode is 'fixed'.
+  let played = questions.results.map(questionView);
+  if (settings.shuffleQuestions) {
+    for (let i = played.length - 1; i > 0; i--) {
+      const j = crypto.getRandomValues(new Uint32Array(1))[0] % (i + 1);
+      [played[i], played[j]] = [played[j], played[i]];
+    }
+  }
+  const questionOrder = played.map((q) => ({ position: q.position, optionOrder: q.options.map((_, i) => i) }));
+  if (settings.shuffleOptions) {
+    played = played.map((q, qi) => {
+      const order = q.options.map((_, i) => i);
+      for (let i = order.length - 1; i > 0; i--) {
+        const j = crypto.getRandomValues(new Uint32Array(1))[0] % (i + 1);
+        [order[i], order[j]] = [order[j], order[i]];
+      }
+      questionOrder[qi].optionOrder = order;
+      return { ...q, options: order.map((oi) => q.options[oi]), correctIndex: order.indexOf(q.correctIndex) };
+    });
+  }
+  if (settings.timerMode === 'fixed') {
+    played = played.map((q) => ({ ...q, timerSeconds: settings.fixedTimerSeconds }));
+  }
+
   const gameId = crypto.randomUUID();
-  await c.env.DB.prepare("INSERT INTO games(id, quiz_id, join_code, status, created_at) VALUES(?,?,?,'lobby',?)")
-    .bind(gameId, quiz.id, joinCode, Date.now()).run();
+  await c.env.DB.prepare("INSERT INTO games(id, quiz_id, join_code, status, created_at, settings_json, question_order_json) VALUES(?,?,?,'lobby',?,?,?)")
+    .bind(gameId, quiz.id, joinCode, Date.now(), JSON.stringify(settings), JSON.stringify(questionOrder)).run();
 
   // Initialize the room Durable Object with the immutable published question
   // set before the join code is returned.
@@ -379,7 +420,8 @@ app.post('/api/v1/quizzes/:quizId/games', async (c) => {
       joinCode,
       quizId: quiz.id,
       dbGameId: gameId,
-      questions: questions.results.map(questionView),
+      questions: played,
+      settings,
     }),
   });
   if (!initResponse.ok) return jsonError(c, 500, ERRORS.internal);
@@ -465,8 +507,11 @@ app.post('/api/v1/games/:joinCode/join', async (c) => {
   if (!body.ok) return bad(c, body);
   const parsed = parseAlias(body.value);
   if (!parsed.ok) return bad(c, parsed);
-  const game = await c.env.DB.prepare("SELECT id, status FROM games WHERE join_code=?").bind(joinCode).first();
+  const game = await c.env.DB.prepare("SELECT id, status, settings_json FROM games WHERE join_code=?").bind(joinCode).first();
   if (!game || game.status === 'finished') return jsonError(c, 404, ERRORS.gameNotFound);
+  if (!readSettings(game.settings_json).allowLateJoin && game.status !== 'lobby') {
+    return jsonError(c, 409, ERRORS.joinFailed, 'This game has already started.');
+  }
   const playerId = crypto.randomUUID();
   const token = crypto.randomUUID() + crypto.randomUUID();
   try {

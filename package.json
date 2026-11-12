@@ -11,6 +11,8 @@
     "build": "npm run build:ui && npm run build:worker",
     "test": "node --test tests/unit/",
     "test:integration": "node scripts/integration.mjs",
+    "deploy": "wrangler deploy && npm run db:migrate",
+    "db:migrate": "wrangler d1 migrations apply DB --remote",
     "package": "npm run build && wrangler deploy --config dist/quizpilot/wrangler.json --dry-run",
     "check": "npm run build && npm test && npm run test:integration && wrangler deploy --config dist/quizpilot/wrangler.json --dry-run"
   },
@@ -43,6 +45,22 @@
     "tailwindcss": "4.3.4",
     "vite": "8.3.5",
     "wrangler": "4.157.0"
+  },
+  "cloudflare": {
+    "bindings": {
+      "DB": {
+        "description": "D1 database for quizzes, sources, questions, games, players, and answers. Migrations in `migrations/` run during deploy."
+      },
+      "SOURCES": {
+        "description": "R2 bucket that keeps original uploads (PDF, .txt, .md) and web-page captures next to their extracted text."
+      },
+      "AI": {
+        "description": "Workers AI drafts questions with `@cf/moonshotai/kimi-k2.6` and converts PDFs to text. No external API key needed."
+      },
+      "BROWSER": {
+        "description": "Browser Run renders public web pages into Markdown for URL sources."
+      }
+    }
   },
   "engines": {
     "node": ">=22"

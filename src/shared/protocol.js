@@ -12,6 +12,24 @@ export const COOKIES = { host: 'qp_host', player: 'qp_player' };
  * open, and `/ws/*` upgrades validate their cookie in the Worker before the
  * request reaches the room Durable Object.
  */
+export const GAME_SETTINGS_DEFAULTS = {
+  showLeaderboard: true,
+  timerMode: 'per_question',
+  fixedTimerSeconds: 20,
+  readySeconds: 3,
+  endWhenAllAnswered: true,
+  autoAdvanceSeconds: 0,
+  shuffleQuestions: false,
+  shuffleOptions: false,
+  speedBonus: true,
+  allowLateJoin: true,
+};
+export const GAME_SETTINGS_CHOICES = {
+  fixedTimerSeconds: [10, 20, 30, 60],
+  readySeconds: [0, 3, 5],
+  autoAdvanceSeconds: [0, 5, 8, 15],
+};
+
 export const ROUTES = {
   health: 'GET /api/health',
   hostSession: 'POST /api/v1/host-session',
@@ -24,6 +42,7 @@ export const ROUTES = {
   sourcePdf: 'PUT /api/v1/quizzes/:quizId/source/pdf',
   sourceGenerate: 'PUT /api/v1/quizzes/:quizId/source/generate',
   putQuestions: 'PUT /api/v1/quizzes/:quizId/questions',
+  putSettings: 'PUT /api/v1/quizzes/:quizId/settings',
   publishQuiz: 'POST /api/v1/quizzes/:quizId/publish',
   createGame: 'POST /api/v1/quizzes/:quizId/games',
   draftRun: 'POST /api/v1/quizzes/:quizId/draft-runs',
@@ -69,6 +88,7 @@ export const WS_CLIENT = {
   closeQuestion: 'close_question',
   nextQuestion: 'next_question',
   finish: 'finish',
+  hold: 'hold',
   answer: 'answer',
 };
 
@@ -99,6 +119,7 @@ export const WS_SERVER = {
   answerCount: 'answer_count',
   questionClosed: 'question_closed',
   gameFinished: 'game_finished',
+  advanceHeld: 'advance_held',
   playerJoined: 'player_joined',
   error: 'error',
 };
@@ -109,6 +130,7 @@ export const WS_ERRORS = {
   wrongRole: 'WRONG_ROLE',
   wrongState: 'WRONG_STATE',
   lateAnswer: 'ANSWER_TOO_LATE',
+  earlyAnswer: 'ANSWER_TOO_EARLY',
   duplicateAnswer: 'ANSWER_DUPLICATE',
   outOfRange: 'OPTION_OUT_OF_RANGE',
 };

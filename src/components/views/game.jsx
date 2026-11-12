@@ -97,13 +97,15 @@ export default function Game({ joinCode }) {
 
   return (
     <div className="flex min-h-dvh flex-col bg-background">
-      <TimerBar deadlineMs={open ? deadlineMs : null} now={clock.now} active={open} />
+      <TimerBar deadlineMs={open && clock.now() >= (view.answersOpenAtMs ?? 0) ? deadlineMs : null} now={clock.now} active={open} />
 
       <main className="mx-auto flex w-full max-w-[1600px] flex-1 flex-col justify-center px-[4vw] pt-[5vh] pb-[calc(4rem+5vh)]">
         {status === 'lobby' && <Lobby joinCode={joinCode} players={players} />}
         {(open || status === 'question_closed') && question && (
           <QuestionStage
             open={open}
+            ready={open && view.answersOpenAtMs != null && clock.now() < view.answersOpenAtMs}
+            readySecondsLeft={view.answersOpenAtMs ? Math.max(0, Math.ceil((view.answersOpenAtMs - clock.now()) / 1000)) : 0}
             k={questionPosition + 1}
             n={questionCount}
             question={question}
@@ -113,6 +115,7 @@ export default function Game({ joinCode }) {
             counts={counts}
             correctIndex={status === 'question_closed' ? view.correctIndex : null}
             leaderboard={leaderboard}
+            showLeaderboard={status === 'question_closed' ? (view.settings?.showLeaderboard ?? true) : true}
             deltas={deltas}
             showLeaderboard={status === 'question_closed'}
           />
@@ -136,6 +139,14 @@ export default function Game({ joinCode }) {
           </span>
         </div>
         <div className="flex items-center gap-3">
+          {status === 'question_closed' && view.advanceAtMs ? (
+            <>
+              <span className="tabular text-[13px] text-muted-foreground">
+                Next in {Math.max(0, Math.ceil((view.advanceAtMs - clock.now()) / 1000))}
+              </span>
+              <Button variant="ghost" onClick={() => send({ type: WS_CLIENT.hold })}>Hold</Button>
+            </>
+          ) : null}
           {status !== 'finished' && (
             <Button variant="ghost" onClick={() => setConfirmEnd(true)}>
               End game
@@ -228,7 +239,17 @@ function Lobby({ joinCode, players }) {
   );
 }
 
-function QuestionStage({ open, k, n, question, remaining, answered, total, counts, correctIndex, leaderboard, deltas, showLeaderboard }) {
+function QuestionStage({ open, ready, readySecondsLeft, k, n, question, remaining, answered, total, counts, correctIndex, leaderboard, deltas, showLeaderboard }) {
+  if (ready) {
+    return (
+      <div className="flex w-full flex-col items-center justify-center gap-[3vh] text-center">
+        <p className="tabular text-[1.4vw] text-muted-foreground">Question {k} / {n}</p>
+        <h1 className="mx-auto max-w-[26ch] text-[3.2vw] leading-[1.15] font-medium tracking-[-0.02em]">{question.text}</h1>
+        <p className="tabular text-[8vw] leading-none font-semibold">{readySecondsLeft}</p>
+        <p className="text-[1.4vw] text-muted-foreground">Get ready</p>
+      </div>
+    );
+  }
   return (
     <div className="flex w-full items-center gap-[3vw]">
       <div className="min-w-0 flex-1">

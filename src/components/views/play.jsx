@@ -48,6 +48,11 @@ export default function Play({ joinCode }) {
   const [lastClosed, setLastClosed] = useState(null);
   const [finished, setFinished] = useState(null);
   const clock = useServerClock();
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => tick((n) => n + 1), 250);
+    return () => clearInterval(id);
+  }, []);
 
   const { snapshot, room, connected, denied, send } = useRoom(`/ws/games/${joinCode}`, {
     onUnauthorized: () => setJoinState((s) => (s === 'joined' ? s : 'form')),
@@ -72,6 +77,10 @@ export default function Play({ joinCode }) {
       } else if (e.type === WS_SERVER.gameFinished) {
         setFinished(e.leaderboard);
       } else if (e.type === WS_SERVER.error) {
+        if (e.code === 'ANSWER_TOO_EARLY') {
+          setAnswer(null); // unlock, no toast
+          return;
+        }
         if (e.code === 'ANSWER_TOO_LATE' || e.code === 'ANSWER_DUPLICATE') {
           setAnsweredEvent(true); // keep locked
         }
@@ -145,11 +154,13 @@ export default function Play({ joinCode }) {
   }
 
   const open = view.status === 'question_open';
+  const ready = open && view.answersOpenAtMs != null && clock.now() < view.answersOpenAtMs;
+  const readyLeft = view.answersOpenAtMs ? Math.max(0, Math.ceil((view.answersOpenAtMs - clock.now()) / 1000)) : 0;
   const remaining = view.deadlineMs ? Math.max(0, Math.ceil((view.deadlineMs - clock.now()) / 1000)) : null;
 
   return (
     <PlayStage>
-      <TimerBar deadlineMs={open ? view.deadlineMs : null} now={clock.now} active={open} />
+      <TimerBar deadlineMs={open && clock.now() >= (view.answersOpenAtMs ?? 0) ? view.deadlineMs : null} now={clock.now} active={open} />
       {!connected && (
         <div className="fixed inset-x-0 top-1 z-50 flex h-9 items-center justify-center gap-2 bg-secondary text-[13px]">
           <Loader2 className="size-3.5 animate-spin" aria-hidden="true" /> Reconnecting…
@@ -166,6 +177,8 @@ export default function Play({ joinCode }) {
 
       {(open || view.status === 'question_closed') && view.question && (
         <QuestionPlay
+          ready={ready}
+          readyLeft={readyLeft}
           snapshot={{ ...view, you: view.you ?? snapshot?.you }}
           closed={lastClosed}
           remaining={remaining}
@@ -194,7 +207,7 @@ function PlayStage({ className, children }) {
   );
 }
 
-function QuestionPlay({ snapshot, closed, remaining, answer, locked, onPick }) {
+function QuestionPlay({ snapshot, closed, remaining, answer, locked, onPick, ready, readyLeft }) {
   const { question, questionPosition, questionCount, you } = snapshot;
   const isClosed = snapshot.status === 'question_closed';
   const result = isClosed ? (closed?.results ?? snapshot.results ?? []).find((r) => r.playerId === you?.playerId) ?? you?.lastResult : null;
@@ -214,9 +227,20 @@ function QuestionPlay({ snapshot, closed, remaining, answer, locked, onPick }) {
         )}
         <SpecTag className="mt-8 w-full text-left">
           <SpecRow label="Points"><span className="tabular">+{result?.score ?? 0}</span></SpecRow>
-          <SpecRow label="Rank"><span className="tabular">{rank >= 0 ? rank + 1 : '–'} of {leaderboard.length}</span></SpecRow>
-          <SpecRow label="Total"><span className="tabular">{you?.score ?? 0}</span></SpecRow>
+          {(snapshot.settings?.showLeaderboard ?? true) && <SpecRow label="Rank"><span className="tabular">{rank >= 0 ? rank + 1 : '–'} of {leaderboard.length}</span></SpecRow>}
+          <SpecRow label="Total"><span className="tabular">{leaderboard[rank]?.score ?? you?.score ?? 0}</span></SpecRow>
         </SpecTag>
+      </div>
+    );
+  }
+
+  if (ready) {
+    return (
+      <div className="flex flex-col items-center pt-14 text-center">
+        <p className="tabular type-small">Q{questionPosition + 1} / {questionCount}</p>
+        <h1 className="mt-6 text-[24px] leading-snug font-medium tracking-[-0.01em]">{question.text}</h1>
+        <p className="tabular mt-10 text-[64px] leading-none font-semibold">{readyLeft}</p>
+        <p className="mt-2 text-[13px] text-muted-foreground">Get ready</p>
       </div>
     );
   }
@@ -269,7 +293,7 @@ function FinishedPlayer({ leaderboard, you }) {
       <p className="tabular mt-3 text-[72px] leading-none font-semibold tracking-[-0.02em]">{rank >= 0 ? rank + 1 : '–'}</p>
       <p className="type-small mt-2">of {plural(leaderboard.length, 'player', 'players')}</p>
       <SpecTag className="mt-8 w-full text-left">
-        <SpecRow label="Total"><span className="tabular">{you?.score ?? 0} points</span></SpecRow>
+        <SpecRow label="Total"><span className="tabular">{leaderboard[rank]?.score ?? you?.score ?? 0} points</span></SpecRow>
       </SpecTag>
       <Button variant="ghost" className="mt-6" onClick={() => navigate('/play')}>
         Join another game

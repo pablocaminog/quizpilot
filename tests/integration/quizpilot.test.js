@@ -199,7 +199,13 @@ test('full game scenario: host flow, auth, room, scoring, persistence', async (t
     assert.equal(open.question.correctIndex, undefined, 'players must not see correctIndex while open');
     const hostOpen = await hostWs.next((e) => e.type === 'question_open');
     assert.equal(typeof hostOpen.question.correctIndex, 'number', 'host sees correctIndex');
-
+    assert.equal(typeof open.answersOpenAtMs, 'number');
+    // answers before the ready window are rejected
+    p1Ws.send({ type: 'answer', optionIndex: 1 });
+    const early = await p1Ws.next((e) => e.type === 'error');
+    assert.equal(early.code, 'ANSWER_TOO_EARLY');
+    // wait for the ready window (deadline - timerSeconds, i.e. answersOpenAtMs)
+    await sleep(Math.max(0, open.deadlineMs - open.serverNowMs - 5000) + 100);
     p1Ws.send({ type: 'answer', optionIndex: 1 });
     const accepted = await p1Ws.next((e) => e.type === 'answer_accepted');
     assert.equal(typeof accepted.receivedAtMs, 'number');
@@ -222,14 +228,14 @@ test('full game scenario: host flow, auth, room, scoring, persistence', async (t
     assert.equal(resnap.snapshot.you.alias, 'Ada');
     p1b.ws.close();
 
-    // post-deadline answer rejected (timer is 5s)
-    await sleep(5200);
+    // post-deadline answer rejected (timer is 5s); the alarm may close it first
+    await sleep(Math.max(0, open.deadlineMs - open.serverNowMs) + 200);
     p2Ws.send({ type: 'answer', optionIndex: 2 });
     const late = await p2Ws.next((e) => e.type === 'error');
-    assert.equal(late.code, 'ANSWER_TOO_LATE');
+    assert.ok(['ANSWER_TOO_LATE', 'WRONG_STATE'].includes(late.code), late.code);
 
-    hostWs.send({ type: 'close_question' });
-    const closed = await p1Ws.next((e) => e.type === 'question_closed');
+    // the deadline alarm closes the question without a host message
+    const closed = await p1Ws.next((e) => e.type === 'question_closed', 15000);
     assert.equal(closed.correctIndex, 1);
     assert.equal(closed.results.length, 1);
     assert.ok(closed.results[0].correct);
@@ -366,4 +372,72 @@ test('pdf source upload', async () => {
     method: 'PUT', headers: { cookie: host, 'content-type': 'text/plain' }, body: Buffer.alloc(512 * 1024 + 1, 'a'),
   });
   assert.equal(bigText.status, 413);
+});
+
+test('game settings: pacing, auto-advance, hold, late join', async (t) => {
+  const session = await api('/api/v1/host-session', { method: 'POST', body: {} });
+  const host = cookieFrom(session.response, 'qp_host');
+  const created = await api('/api/v1/quizzes', { method: 'POST', cookie: host, body: { title: 'S', audience: 'a', learningGoal: 'g' } });
+  const quizId = created.json.quiz.id;
+  await api(`/api/v1/quizzes/${quizId}/source/paste`, { method: 'PUT', cookie: host, body: { text: 'Alpha beta gamma delta.' } });
+  const q = (text) => ({ text, options: ['a', 'b'], correctIndex: 0, timerSeconds: 30, rationale: 'r', citations: [{ label: 'l', excerpt: 'Alpha' }] });
+  await api(`/api/v1/quizzes/${quizId}/questions`, { method: 'PUT', cookie: host, body: { questions: [q('Q1'), q('Q2')] } });
+
+  const put = await api(`/api/v1/quizzes/${quizId}/settings`, { method: 'PUT', cookie: host, body: { readySeconds: 0, autoAdvanceSeconds: 5, endWhenAllAnswered: true, speedBonus: false, allowLateJoin: false, showLeaderboard: false } });
+  assert.equal(put.status, 200);
+  assert.equal(put.json.settings.speedBonus, false);
+  assert.equal(put.json.settings.timerMode, 'per_question'); // merged defaults
+  const badPut = await api(`/api/v1/quizzes/${quizId}/settings`, { method: 'PUT', cookie: host, body: { readySeconds: 4 } });
+  assert.equal(badPut.status, 400);
+  // partial PUTs merge over stored settings, not defaults
+  await api(`/api/v1/quizzes/${quizId}/settings`, { method: 'PUT', cookie: host, body: { speedBonus: false } });
+  const get2 = await api(`/api/v1/quizzes/${quizId}`, { cookie: host });
+  assert.equal(get2.json.quiz.settings.readySeconds, 0);
+  assert.equal(get2.json.quiz.settings.speedBonus, false);
+  const get = await api(`/api/v1/quizzes/${quizId}`, { cookie: host });
+  assert.equal(get.json.quiz.settings.autoAdvanceSeconds, 5);
+
+  await api(`/api/v1/quizzes/${quizId}/publish`, { method: 'POST', cookie: host });
+  const editAfter = await api(`/api/v1/quizzes/${quizId}/settings`, { method: 'PUT', cookie: host, body: { readySeconds: 0 } });
+  assert.equal(editAfter.status, 200);
+
+  const game = (await api(`/api/v1/quizzes/${quizId}/games`, { method: 'POST', cookie: host })).json.game;
+  const code = game.joinCode;
+  const j1 = await api(`/api/v1/games/${code}/join`, { method: 'POST', body: { alias: 'Ada' } });
+  const j2 = await api(`/api/v1/games/${code}/join`, { method: 'POST', body: { alias: 'Bo' } });
+  const hostWs = await connectWs(`/ws/games/${code}/host`, host);
+  const p1 = await connectWs(`/ws/games/${code}`, cookieFrom(j1.response, 'qp_player'));
+  const p2 = await connectWs(`/ws/games/${code}`, cookieFrom(j2.response, 'qp_player'));
+  await hostWs.next((e) => e.type === 'room_snapshot');
+  await p1.next((e) => e.type === 'room_snapshot');
+  await p2.next((e) => e.type === 'room_snapshot');
+
+  await hostWs.send({ type: 'start' });
+  await p1.next((e) => e.type === 'question_open');
+  p1.send({ type: 'answer', optionIndex: 0 });
+  await p1.next((e) => e.type === 'answer_accepted');
+  p2.send({ type: 'answer', optionIndex: 0 });
+  // endWhenAllAnswered: close arrives ~600ms, no host message
+  const closed = await hostWs.next((e) => e.type === 'question_closed', 4000);
+  assert.equal(closed.results[0].score, 1000); // flat scoring
+  assert.equal(closed.showLeaderboard, false);
+  assert.equal(typeof closed.advanceAtMs, 'number');
+  // auto-advance opens question 2 without host message (~5s)
+  const open2 = await p1.next((e) => e.type === 'question_open' && e.questionPosition === 1, 12000);
+  assert.equal(open2.questionPosition, 1);
+  // late join rejected
+  const late = await api(`/api/v1/games/${code}/join`, { method: 'POST', body: { alias: 'Cy' } });
+  assert.equal(late.status, 409);
+  assert.equal(late.json.error, 'JOIN_FAILED');
+  // hold cancels the pending advance after q2 close
+  p1.send({ type: 'answer', optionIndex: 0 });
+  p2.send({ type: 'answer', optionIndex: 0 });
+  await hostWs.next((e) => e.type === 'question_closed', 4000);
+  hostWs.send({ type: 'hold' });
+  await p1.next((e) => e.type === 'advance_held', 4000);
+  const noOpen = await Promise.race([p1.next((e) => e.type === 'question_open', 6000).then(() => true).catch(() => false), sleep(6200).then(() => false)]);
+  assert.equal(noOpen, false);
+  hostWs.send({ type: 'finish' });
+  await p1.next((e) => e.type === 'game_finished');
+  for (const s2 of [hostWs, p1, p2]) s2.ws.close();
 });

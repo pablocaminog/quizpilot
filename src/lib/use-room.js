@@ -73,7 +73,9 @@ function mergeEvent(room, e) {
         questionPosition: e.questionPosition,
         question: e.question,
         deadlineMs: e.deadlineMs,
+        answersOpenAtMs: e.answersOpenAtMs,
         serverNowMs: e.serverNowMs,
+        settings: e.settings,
         answeredCount: 0,
         results: null,
         correctIndex: null,
@@ -89,6 +91,9 @@ function mergeEvent(room, e) {
         leaderboard: e.leaderboard,
         players: e.leaderboard,
         deadlineMs: null,
+        advanceAtMs: e.advanceAtMs ?? null,
+        showLeaderboard: e.showLeaderboard,
+        settings: e.settings ?? room.settings,
         question: room.question ? { ...room.question, correctIndex: e.correctIndex } : room.question,
       };
     case WS_SERVER.gameFinished:
@@ -97,6 +102,8 @@ function mergeEvent(room, e) {
       return room.players.some((p) => p.playerId === e.player.playerId)
         ? room
         : { ...room, players: [...room.players, { ...e.player, score: 0, totalElapsedMs: 0 }] };
+    case WS_SERVER.advanceHeld:
+      return { ...room, advanceAtMs: null };
     default:
       return room;
   }

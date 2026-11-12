@@ -113,7 +113,7 @@ export default function Workspace({ quizId }) {
           />
         )}
         {step === 3 && (
-          <PublishStage quiz={quiz} source={source} questionCount={questions.length} onPublished={load} />
+          <PublishStage quiz={quiz} source={source} questionCount={questions.length} settings={quiz.settings} onPublished={load} />
         )}
       </Stage>
     </div>

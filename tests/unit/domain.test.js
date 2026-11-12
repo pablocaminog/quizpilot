@@ -2,6 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   readConversionMarkdown,
+  parseQuizSettings,
+  readSettings,
   parseHostBrief,
   parseSourceUrl,
   parseQuizProposal,
@@ -147,4 +149,23 @@ test('readConversionMarkdown normalizes toMarkdown results', () => {
   const envelope = (contents) => `# a.pdf\n## Metadata\n- PDFFormatVersion=1.4\n\n## Contents\n${contents}`;
   assert.equal(readConversionMarkdown({ format: 'markdown', data: envelope('### Page 1\nHello QuizPilot') }), '### Page 1\nHello QuizPilot');
   assert.equal(readConversionMarkdown({ format: 'markdown', data: envelope('### Page 1\n\n### Page 2\n') }), '');
+});
+
+test('parseQuizSettings merges and validates', () => {
+  assert.deepEqual(parseQuizSettings({}).value, { showLeaderboard: true, timerMode: 'per_question', fixedTimerSeconds: 20, readySeconds: 3, endWhenAllAnswered: true, autoAdvanceSeconds: 0, shuffleQuestions: false, shuffleOptions: false, speedBonus: true, allowLateJoin: true });
+  assert.equal(parseQuizSettings({ autoAdvanceSeconds: 8, speedBonus: false }).value.speedBonus, false);
+  assert.equal(parseQuizSettings({ nope: 1 }).ok, false);
+  assert.equal(parseQuizSettings({ fixedTimerSeconds: 25 }).ok, false);
+  assert.equal(parseQuizSettings({ readySeconds: 4 }).ok, false);
+  assert.equal(parseQuizSettings({ timerMode: 'x' }).ok, false);
+  assert.equal(readSettings(null).readySeconds, 3);
+  assert.equal(readSettings('{bad').speedBonus, true);
+  assert.equal(readSettings('{"speedBonus":false}').speedBonus, false);
+  const merged = parseQuizSettings({ speedBonus: false }, parseQuizSettings({ readySeconds: 0 }).value);
+  assert.equal(merged.value.readySeconds, 0);
+  assert.equal(merged.value.speedBonus, false);
+});
+test('scoreAnswer flat when speedBonus off', () => {
+  assert.equal(scoreAnswer(0, 20, false), 1000);
+  assert.equal(scoreAnswer(19000, 20, false), 1000);
 });

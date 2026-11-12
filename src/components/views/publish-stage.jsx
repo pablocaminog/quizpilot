@@ -8,6 +8,7 @@ import { PublishDialog } from '@/components/views/review-stage';
 import { Check, Copy, Loader2, Minus, Play } from 'lucide-react';
 import { StageHeading } from '@/components/stage';
 import { SpecRow, SpecTag } from '@/components/spec-tag';
+import GameSettings from '@/components/views/game-settings';
 import { plural } from '@/lib/format';
 import { toast } from 'sonner';
 
@@ -22,7 +23,7 @@ function CheckRow({ label, done, children }) {
   );
 }
 
-export default function PublishStage({ quiz, source, questionCount, onPublished }) {
+export default function PublishStage({ quiz, source, questionCount, settings, onPublished }) {
   const [confirm, setConfirm] = useState(false);
   const [pending, setPending] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -63,6 +64,9 @@ export default function PublishStage({ quiz, source, questionCount, onPublished 
           </SpecRow>
           <SpecRow label="Games"><span className="text-muted-foreground">Each game gets a new code.</span></SpecRow>
         </SpecTag>
+        <div className="mt-8">
+          <GameSettings quizId={quiz.id} settings={settings} />
+        </div>
         <div className="mt-10 flex justify-center">
           <Button variant="signal" size="lg" onClick={start} disabled={starting}>
             {starting ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <Play className="size-4" aria-hidden="true" />}
@@ -95,6 +99,9 @@ export default function PublishStage({ quiz, source, questionCount, onPublished 
         <CheckRow label="Questions" done={questionCount >= 2}>{plural(questionCount, 'question', 'questions')} saved</CheckRow>
         <CheckRow label="Provenance" done={questionCount >= 2}>Cited or marked AI-generated</CheckRow>
       </SpecTag>
+      <div className="mt-8">
+        <GameSettings quizId={quiz.id} settings={settings} />
+      </div>
       <div className="mt-10 flex justify-center">
         <Button variant="signal" size="lg" onClick={() => setConfirm(true)} disabled={!ready}>
           Publish

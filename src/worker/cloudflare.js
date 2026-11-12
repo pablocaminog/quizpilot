@@ -1,5 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
-import { WS_CLIENT, WS_SERVER, WS_ERRORS } from '../shared/protocol.js';
+import { WS_CLIENT, WS_SERVER, WS_ERRORS, GAME_SETTINGS_DEFAULTS } from '../shared/protocol.js';
 import { parseAnswerMessage, scoreAnswer, orderLeaderboard } from './domain.js';
 
 const SCHEMA = `
@@ -13,6 +13,17 @@ CREATE TABLE IF NOT EXISTS answers (
   PRIMARY KEY (player_id, question_position)
 );
 `;
+
+/** Normalize legacy DO state (pre-settings games keep their old behaviour: no ready window). */
+function normalizeState(state) {
+  if (!state) return state;
+  return {
+    ...state,
+    settings: { ...GAME_SETTINGS_DEFAULTS, readySeconds: 0, ...(state.settings ?? {}) },
+    pending: state.pending ?? null,
+    answersOpenAtMs: state.answersOpenAtMs ?? state.openedAtMs ?? null,
+  };
+}
 
 function readState(sql) {
   const row = [...sql.exec("SELECT value FROM room_state WHERE key='state'")][0];
@@ -52,7 +63,7 @@ export class QuizRoom extends DurableObject {
     const url = new URL(request.url);
     if (url.pathname === '/init' && request.method === 'POST') {
       if (this.state) return new Response('already initialized', { status: 409 });
-      const { gameId, joinCode, quizId, questions } = await request.json();
+      const { gameId, joinCode, quizId, questions, settings } = await request.json();
       this.state = {
         gameId, joinCode, quizId,
         status: 'lobby',
@@ -60,7 +71,10 @@ export class QuizRoom extends DurableObject {
         questionCount: questions.length,
         questionPosition: -1,
         openedAtMs: null,
+        answersOpenAtMs: null,
         deadlineMs: null,
+        settings: { ...GAME_SETTINGS_DEFAULTS, ...(settings ?? {}) },
+        pending: null,
       };
       writeState(this.ctx.storage.sql, this.state);
       return new Response('ok');
@@ -105,7 +119,7 @@ export class QuizRoom extends DurableObject {
     if (typeof message?.type !== 'string') return this.fail(ws, WS_ERRORS.malformed);
 
     if (attachment.role === 'host') {
-      const allowed = [WS_CLIENT.start, WS_CLIENT.openQuestion, WS_CLIENT.closeQuestion, WS_CLIENT.nextQuestion, WS_CLIENT.finish];
+      const allowed = [WS_CLIENT.start, WS_CLIENT.openQuestion, WS_CLIENT.closeQuestion, WS_CLIENT.nextQuestion, WS_CLIENT.finish, WS_CLIENT.hold];
       if (!allowed.includes(message.type)) return this.fail(ws, WS_ERRORS.wrongRole);
       return this.hostMessage(ws, message.type);
     }
@@ -114,10 +128,14 @@ export class QuizRoom extends DurableObject {
   }
 
   async webSocketClose(ws) {
+    const attachment = this.sessions.get(ws) ?? ws.deserializeAttachment();
     this.sessions.delete(ws);
+    if (attachment?.role === 'player') this.checkAllAnswered();
   }
   async webSocketError(ws) {
+    const attachment = this.sessions.get(ws) ?? ws.deserializeAttachment();
     this.sessions.delete(ws);
+    if (attachment?.role === 'player') this.checkAllAnswered();
   }
 
   hostMessage(ws, type) {
@@ -134,12 +152,20 @@ export class QuizRoom extends DurableObject {
         if (s.status !== 'question_closed') return this.fail(ws, WS_ERRORS.wrongState);
         const next = s.questionPosition + 1;
         if (next >= s.questionCount) return this.fail(ws, WS_ERRORS.wrongState);
+        this.clearPending();
         this.openQuestion(next);
         return;
       }
       case WS_CLIENT.closeQuestion: {
         if (s.status !== 'question_open') return this.fail(ws, WS_ERRORS.wrongState);
+        this.clearPending();
         this.closeQuestion();
+        return;
+      }
+      case WS_CLIENT.hold: {
+        if (s.status !== 'question_closed' || s.pending?.action !== 'advance') return this.fail(ws, WS_ERRORS.wrongState);
+        this.clearPending();
+        this.broadcast({ type: WS_SERVER.advanceHeld });
         return;
       }
       case WS_CLIENT.finish: {
@@ -157,13 +183,16 @@ export class QuizRoom extends DurableObject {
     const question = this.state.questions[position];
     // Authoritative timing is recorded before the broadcast.
     const openedAtMs = Date.now();
+    const answersOpenAtMs = openedAtMs + this.state.settings.readySeconds * 1000;
     this.state = {
       ...this.state,
       status: 'question_open',
       questionPosition: position,
       openedAtMs,
-      deadlineMs: openedAtMs + question.timerSeconds * 1000,
+      answersOpenAtMs,
+      deadlineMs: answersOpenAtMs + question.timerSeconds * 1000,
     };
+    this.setPending('close', this.state.deadlineMs);
     writeState(sql, this.state);
     this.persistGameStatus('question_open');
     this.broadcastQuestion();
@@ -184,7 +213,9 @@ export class QuizRoom extends DurableObject {
           ...(attachment.role === 'host' ? { correctIndex: q.correctIndex } : {}),
         },
         deadlineMs: s.deadlineMs,
+        answersOpenAtMs: s.answersOpenAtMs,
         serverNowMs: Date.now(),
+        settings: this.clientSettings(),
       };
       this.send(ws, payload);
     }
@@ -198,6 +229,7 @@ export class QuizRoom extends DurableObject {
     if (!parsed.ok) return this.fail(ws, parsed.code);
     // Server receipt time is authoritative — client clocks are never trusted.
     const receivedAtMs = Date.now();
+    if (receivedAtMs < s.answersOpenAtMs) return this.fail(ws, WS_ERRORS.earlyAnswer);
     if (receivedAtMs >= s.deadlineMs) return this.fail(ws, WS_ERRORS.lateAnswer);
     const sql = this.ctx.storage.sql;
     const existing = [...sql.exec(
@@ -206,9 +238,9 @@ export class QuizRoom extends DurableObject {
     )];
     if (existing.length) return this.fail(ws, WS_ERRORS.duplicateAnswer);
 
-    const elapsedMs = receivedAtMs - s.openedAtMs;
+    const elapsedMs = receivedAtMs - s.answersOpenAtMs;
     const correct = parsed.value === question.correctIndex ? 1 : 0;
-    const score = correct ? scoreAnswer(elapsedMs, question.timerSeconds) : 0;
+    const score = correct ? scoreAnswer(elapsedMs, question.timerSeconds, s.settings.speedBonus) : 0;
     // Persist the answer to DO storage before the accepted event is sent.
     sql.exec(
       'INSERT INTO answers(player_id, question_position, received_at_ms, elapsed_ms, selected_index, correct, score) VALUES(?,?,?,?,?,?,?)',
@@ -230,14 +262,77 @@ export class QuizRoom extends DurableObject {
     const total = [...sql.exec('SELECT COUNT(*) AS n FROM players')][0].n;
     const count = { type: WS_SERVER.answerCount, questionPosition: s.questionPosition, answered, total };
     for (const [socket, who] of this.sessions) if (who.role === 'host') this.send(socket, count);
+    this.checkAllAnswered();
+  }
+
+  // When endWhenAllAnswered is on and every live player socket has answered,
+  // bring the scheduled close forward to now+600ms so the last answer still
+  // shows "Locked" before the reveal.
+  checkAllAnswered() {
+    const s = this.state;
+    if (!s || s.status !== 'question_open' || !s.settings.endWhenAllAnswered) return;
+    const playerIds = new Set([...this.sessions.values()].filter((a) => a.role === 'player' && a.playerId).map((a) => a.playerId));
+    if (!playerIds.size) return;
+    const sql = this.ctx.storage.sql;
+    const answered = new Set(
+      [...sql.exec('SELECT DISTINCT player_id FROM answers WHERE question_position=?', s.questionPosition)].map((r) => r.player_id),
+    );
+    if (![...playerIds].every((id) => answered.has(id))) return;
+    const atMs = Date.now() + 600;
+    if (!s.pending || s.pending.atMs > atMs) this.setPending('close', atMs);
+  }
+
+  setPending(action, atMs) {
+    this.state = { ...this.state, pending: { action, atMs } };
+    writeState(this.ctx.storage.sql, this.state);
+    this.ctx.storage.setAlarm(atMs);
+  }
+  clearPending() {
+    this.state = { ...this.state, pending: null };
+    writeState(this.ctx.storage.sql, this.state);
+    this.ctx.storage.deleteAlarm();
+  }
+
+  async alarm() {
+    this.state = normalizeState(readState(this.ctx.storage.sql)) ?? this.state;
+    const s = this.state;
+    if (!s?.pending) return;
+    if (Date.now() < s.pending.atMs - 50) {
+      this.ctx.storage.setAlarm(s.pending.atMs);
+      return;
+    }
+    const { action } = s.pending;
+    this.state = { ...s, pending: null };
+    writeState(this.ctx.storage.sql, this.state);
+    if (action === 'close' && this.state.status === 'question_open') this.closeQuestion();
+    else if (action === 'advance' && this.state.status === 'question_closed') {
+      const next = this.state.questionPosition + 1;
+      if (next >= this.state.questionCount) this.finishGame();
+      else this.openQuestion(next);
+    }
+  }
+
+  clientSettings() {
+    const { showLeaderboard, readySeconds, autoAdvanceSeconds, endWhenAllAnswered } = this.state.settings;
+    return { showLeaderboard, readySeconds, autoAdvanceSeconds, endWhenAllAnswered };
   }
 
   closeQuestion() {
     const s = this.state;
     const sql = this.ctx.storage.sql;
     const question = s.questions[s.questionPosition];
-    this.state = { ...s, status: 'question_closed', openedAtMs: null, deadlineMs: null };
+    const autoAdvance = s.settings.autoAdvanceSeconds;
+    this.state = {
+      ...s,
+      status: 'question_closed',
+      openedAtMs: null,
+      answersOpenAtMs: null,
+      deadlineMs: null,
+      pending: autoAdvance > 0 ? { action: 'advance', atMs: Date.now() + autoAdvance * 1000 } : null,
+    };
     writeState(sql, this.state);
+    if (this.state.pending) this.ctx.storage.setAlarm(this.state.pending.atMs);
+    else this.ctx.storage.deleteAlarm();
     this.persistGameStatus('question_closed');
 
     const results = [...sql.exec(
@@ -251,6 +346,9 @@ export class QuizRoom extends DurableObject {
       correctIndex: question.correctIndex,
       results,
       leaderboard,
+      advanceAtMs: this.state.pending?.action === 'advance' ? this.state.pending.atMs : null,
+      showLeaderboard: s.settings.showLeaderboard,
+      settings: this.clientSettings(),
     });
     this.persistAnswers(s.questionPosition);
   }
@@ -258,7 +356,8 @@ export class QuizRoom extends DurableObject {
   finishGame() {
     const s = this.state;
     const sql = this.ctx.storage.sql;
-    this.state = { ...s, status: 'finished', openedAtMs: null, deadlineMs: null };
+    this.ctx.storage.deleteAlarm();
+    this.state = { ...s, status: 'finished', openedAtMs: null, answersOpenAtMs: null, deadlineMs: null, pending: null };
     writeState(sql, this.state);
     if (s.status === 'question_open' || s.status === 'question_closed') this.persistAnswers(s.questionPosition);
     this.persistGameStatus('finished', Date.now());
@@ -321,7 +420,10 @@ export class QuizRoom extends DurableObject {
       questionPosition: s.questionPosition,
       questionCount: s.questionCount,
       deadlineMs: s.deadlineMs,
+      answersOpenAtMs: s.answersOpenAtMs,
       answeredCount: this.answeredCount(s.questionPosition),
+      settings: this.clientSettings(),
+      advanceAtMs: s.status === 'question_closed' && s.pending?.action === 'advance' ? s.pending.atMs : null,
       players: leaderboard,
     };
     if (s.status === 'question_open' && s.questionPosition >= 0) {

@@ -4,9 +4,9 @@
  * `{ ok: false, code, field, message }` — never throw on bad input.
  */
 import * as v from 'valibot';
-import { AI_PROVENANCE, ERRORS, SOURCE_KINDS, QUIZ_STATUSES, GAME_STATUSES } from '../shared/protocol.js';
+import { AI_PROVENANCE, ERRORS, SOURCE_KINDS, QUIZ_STATUSES, GAME_STATUSES, GAME_SETTINGS_DEFAULTS, GAME_SETTINGS_CHOICES } from '../shared/protocol.js';
 
-export { SOURCE_KINDS, QUIZ_STATUSES, GAME_STATUSES, AI_PROVENANCE };
+export { SOURCE_KINDS, QUIZ_STATUSES, GAME_STATUSES, AI_PROVENANCE, GAME_SETTINGS_DEFAULTS, GAME_SETTINGS_CHOICES };
 
 export const LIMITS = {
   briefText: 2000,
@@ -225,9 +225,40 @@ export function parseAnswerMessage(message, optionCount) {
   return { ok: true, value: optionIndex };
 }
 
-/** Score a correct answer: faster is better, bounded below by half credit. */
-export function scoreAnswer(elapsedMs, timerSeconds) {
+/** Score a correct answer: faster is better, bounded below by half credit; flat when speedBonus is off. */
+export function scoreAnswer(elapsedMs, timerSeconds, speedBonus = true) {
+  if (!speedBonus) return 1000;
   return Math.round(1000 * (1 - (0.5 * elapsedMs) / (timerSeconds * 1000)));
+}
+
+const settingsSchema = v.strictObject({
+  showLeaderboard: v.optional(v.boolean()),
+  timerMode: v.optional(v.picklist(['per_question', 'fixed'])),
+  fixedTimerSeconds: v.optional(v.picklist(GAME_SETTINGS_CHOICES.fixedTimerSeconds)),
+  readySeconds: v.optional(v.picklist(GAME_SETTINGS_CHOICES.readySeconds)),
+  endWhenAllAnswered: v.optional(v.boolean()),
+  autoAdvanceSeconds: v.optional(v.picklist(GAME_SETTINGS_CHOICES.autoAdvanceSeconds)),
+  shuffleQuestions: v.optional(v.boolean()),
+  shuffleOptions: v.optional(v.boolean()),
+  speedBonus: v.optional(v.boolean()),
+  allowLateJoin: v.optional(v.boolean()),
+});
+
+/** Validate a (possibly partial) settings payload and merge over defaults. */
+export function parseQuizSettings(body, base = GAME_SETTINGS_DEFAULTS) {
+  const parsed = run(settingsSchema, body);
+  if (!parsed.ok) return parsed;
+  return { ok: true, value: { ...base, ...parsed.value } };
+}
+
+/** Merge a stored settings_json value over defaults; null/invalid -> defaults. */
+export function readSettings(json) {
+  if (!json) return { ...GAME_SETTINGS_DEFAULTS };
+  try {
+    return { ...GAME_SETTINGS_DEFAULTS, ...JSON.parse(json) };
+  } catch {
+    return { ...GAME_SETTINGS_DEFAULTS };
+  }
 }
 
 /**
